@@ -1,0 +1,13 @@
+{
+  "name": "jkbms-cloud",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:frontend": "cd frontend && npm install && npm run build",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:worker": "npx wrangler dev",
+    "dev": "npm run build:frontend && npx wrangler dev",
+    "deploy": "npm run build:frontend && npx wrangler deploy",
+    "db:init": "npx wrangler d1 execute jkbms-db --file=./schema.sql"
+  }
+}

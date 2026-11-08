@@ -1,9 +1,16 @@
 # PlatformIO build files
-frontend/node_modules/
-frontend/dist/
 /.pio/
 /.vscode/
-# Build output artifacts
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Build output
+public/bundle.js
+
+# Build artifacts
 *.elf
 *.bin
 *.hex
@@ -14,11 +21,19 @@ frontend/dist/
 *.pdb
 *.exe
 *.log
+
+# Secrets
+.env
+
+# Wrangler cache
+.wrangler/
+
 # Python virtual environments
 venv/
 __pycache__/
+
 # macOS system files
 .DS_Store
+
 # IDE/project files
 .idea/
-

@@ -3,7 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JK-BMS Live Telemetry Monitor (React)</title>
+  <title>JK-BMS Live Telemetry Monitor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          gridTemplateColumns: {
+            '16': 'repeat(16, minmax(0, 1fr))',
+          }
+        }
+      }
+    }
+  </script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-3 md:p-6 font-sans">
   <div id="root"></div>

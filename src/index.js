@@ -85,6 +85,18 @@ export default {
       const result = await env.DB.prepare(
         "SELECT * FROM bms_telemetry ORDER BY timestamp DESC LIMIT 1"
       ).first();
+
+      if (result) {
+        // Parse cell_voltages from JSON string back to array
+        if (typeof result.cell_voltages === "string") {
+          try {
+            result.cell_voltages = JSON.parse(result.cell_voltages);
+          } catch {
+            result.cell_voltages = [];
+          }
+        }
+      }
+
       return new Response(JSON.stringify(result || {}), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -96,12 +108,25 @@ export default {
       const results = await env.DB.prepare(
         "SELECT * FROM bms_telemetry ORDER BY timestamp DESC LIMIT ?"
       ).bind(limit).all();
-      return new Response(JSON.stringify((results.results || []).reverse()), {
+
+      const rows = (results.results || []).reverse().map((row) => {
+        // Parse cell_voltages from JSON string back to array
+        if (typeof row.cell_voltages === "string") {
+          try {
+            row.cell_voltages = JSON.parse(row.cell_voltages);
+          } catch {
+            row.cell_voltages = [];
+          }
+        }
+        return row;
+      });
+
+      return new Response(JSON.stringify(rows), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Fallback
-    return new Response("Not found", { status: 404 });
+    // ---------- Serve static frontend assets ----------
+    return env.ASSETS.fetch(request);
   },
 };
