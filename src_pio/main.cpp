@@ -1,10 +1,10 @@
 /**
- * ESP32 BLE to Cloudflare Bridge for JK-BMS
+ * ESP32 BLE to MQTT Bridge for JK-BMS
  * Based on cue108/jk-bms-opensearch-dashboard & syssi/esphome-jk-bms protocol
  */
 
 #include <WiFi.h>
-#include <HTTPClient.h>
+#include <PubSubClient.h>
 #include <NimBLEDevice.h>
 #include <ArduinoJson.h>
 
@@ -12,22 +12,20 @@
 const char* WIFI_SSID     = "SLT-Fiber-2.4G-9240";
 const char* WIFI_PASSWORD = "9d80e972e!";
 
-const char* CLOUDFLARE_URL = "https://jkbms-cloud.vcode-fiverr.workers.dev/api/telemetry";
-const char* API_KEY        = "5fedefec-82d6-4d92-b316-4d92c8704426"; // Updated API key from .env
-
-
-
-
-
-
-
+// Target BMS Serial / Name
 const String TARGET_SERIAL = "507268D28101263";
 
 // Standard JK BLE UUIDs
 static BLEUUID SERVICE_UUID("0000ffe0-0000-1000-8000-00805f9b34fb");
 static BLEUUID CHAR_NOTIFY_UUID("0000ffe1-0000-1000-8000-00805f9b34fb");
 
-// Callbacks will be defined later after globals
+// ---------------------- MQTT Configuration ----------------------
+// Set to your MQTT broker address (e.g. "broker.emqx.io", "test.mosquitto.org", or local IP e.g. "192.168.1.100")
+const char* MQTT_SERVER   = "broker.emqx.io";
+const int   MQTT_PORT     = 1883;
+const char* MQTT_USER     = "";
+const char* MQTT_PASS     = "";
+const char* MQTT_TOPIC    = "jkbms/507268D28101263/telemetry";
 
 const uint8_t COMMAND_CELL_INFO   = 0x96;
 const uint8_t COMMAND_DEVICE_INFO = 0x97;
@@ -40,7 +38,13 @@ const uint8_t TYPE_CELL_INFO = 0x02;
 // ---------------------- Global State ----------------------
 static NimBLERemoteCharacteristic* pChar = nullptr;
 static NimBLEClient* pClient = nullptr;
-static NimBLEAdvertisedDevice* targetDevice = nullptr;
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
+
+unsigned long lastUploadTime = 0;
+const unsigned long UPLOAD_INTERVAL_MS = 5000; // Publish every 5 seconds
+unsigned long lastMqttReconnect = 0;
+unsigned long lastNotificationTime = 0;
 
 // BLE client callbacks to manage connection state
 class MyClientCallbacks : public NimBLEClientCallbacks {
@@ -52,11 +56,9 @@ public:
     Serial.println("[BLE] Client disconnected");
     pClient = nullptr;
     pChar = nullptr;
+    lastNotificationTime = 0;
   }
 };
-
-unsigned long lastUploadTime = 0;
-const unsigned long UPLOAD_INTERVAL_MS = 5000; // upload every 5 seconds
 
 struct BmsData {
   float total_voltage = 0.0;
@@ -174,6 +176,8 @@ void decodeCellInfo(const uint8_t* frame) {
 
 // ---------------------- Feed Frame Buffer ----------------------
 void onNotify(NimBLERemoteCharacteristic* pChar, uint8_t* data, size_t length, bool isNotify) {
+  lastNotificationTime = millis();
+
   if (length >= 4 && memcmp(data, FRAME_PREAMBLE, 4) == 0) {
     frameBuffer.clear();
   }
@@ -202,14 +206,33 @@ void onNotify(NimBLERemoteCharacteristic* pChar, uint8_t* data, size_t length, b
   }
 }
 
-// ---------------------- Cloudflare HTTP Upload ----------------------
-void uploadToCloudflare() {
-  if (WiFi.status() != WL_CONNECTED || !bmsData.updated) return;
+// ---------------------- MQTT Reconnect ----------------------
+void ensureMqttConnected() {
+  if (mqttClient.connected()) return;
 
-  HTTPClient http;
-  http.begin(CLOUDFLARE_URL);
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("X-API-Key", API_KEY);
+  if (millis() - lastMqttReconnect < 5000) return;
+  lastMqttReconnect = millis();
+
+  Serial.printf("[MQTT] Connecting to broker %s:%d...\n", MQTT_SERVER, MQTT_PORT);
+  String clientId = "ESP32_JKBMS_" + String((uint32_t)ESP.getEfuseMac(), HEX);
+
+  bool ok = false;
+  if (strlen(MQTT_USER) > 0) {
+    ok = mqttClient.connect(clientId.c_str(), MQTT_USER, MQTT_PASS);
+  } else {
+    ok = mqttClient.connect(clientId.c_str());
+  }
+
+  if (ok) {
+    Serial.println("[MQTT] Connected successfully!");
+  } else {
+    Serial.printf("[MQTT] Connection failed, rc=%d. Retrying in 5s...\n", mqttClient.state());
+  }
+}
+
+// ---------------------- MQTT Telemetry Publish ----------------------
+void publishMqttTelemetry() {
+  if (!mqttClient.connected() || !bmsData.updated) return;
 
   DynamicJsonDocument doc(2048);
   doc["total_voltage"] = bmsData.total_voltage;
@@ -232,9 +255,12 @@ void uploadToCloudflare() {
   String payload;
   serializeJson(doc, payload);
 
-  int httpCode = http.POST(payload);
-  Serial.printf("[Cloudflare D1] HTTP Response: %d\n", httpCode);
-  http.end();
+  bool published = mqttClient.publish(MQTT_TOPIC, payload.c_str());
+  if (published) {
+    Serial.printf("[MQTT] Published %u bytes to %s\n", payload.length(), MQTT_TOPIC);
+  } else {
+    Serial.println("[MQTT] Publish failed (check buffer size or connection)!");
+  }
 }
 
 // ---------------------- Setup & Main Loop ----------------------
@@ -250,13 +276,26 @@ void setup() {
   }
   Serial.printf("\nWiFi connected! IP: %s\n", WiFi.localIP().toString().c_str());
 
+  // Configure MQTT client
+  mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
+  mqttClient.setBufferSize(2048); // Allow large JSON payload with 24 cell voltages
+
   NimBLEDevice::init("ESP32_JK_BLE");
   pClient = NimBLEDevice::createClient();
-  // Register our client callbacks
   pClient->setClientCallbacks(new MyClientCallbacks());
 }
 
 void loop() {
+  // 1. Maintain MQTT connection
+  if (WiFi.status() == WL_CONNECTED) {
+    if (!mqttClient.connected()) {
+      ensureMqttConnected();
+    } else {
+      mqttClient.loop();
+    }
+  }
+
+  // 2. Manage BLE connection
   if (!pClient || !pClient->isConnected()) {
     Serial.println("[BLE] Scanning for JK BMS peripheral...");
     NimBLEScan* pScan = NimBLEDevice::getScan();
@@ -285,8 +324,7 @@ void loop() {
         if (pClient->connect(&device)) {
           Serial.println("[BLE] Connected! Locating FFE0 service...");
 
-          // [Fix A] Set supervision timeout to 10 seconds to prevent BMS disconnect beeps during WiFi transmissions
-          // Parameters: minInterval=20ms (16*1.25ms), maxInterval=40ms (32*1.25ms), latency=0, timeout=10,000ms (1000*10ms)
+          // Set supervision timeout to 10 seconds to avoid connection drops
           pClient->setConnectionParams(16, 32, 0, 1000);
 
           NimBLERemoteService* pSvc = pClient->getService(SERVICE_UUID);
@@ -296,11 +334,12 @@ void loop() {
               pChar->subscribe(true, onNotify);
               Serial.println("[BLE] Subscribed to FFE1 notifications!");
               
-              // Initial handshake queries from reference repo
+              // Initial handshake queries: causes exactly the 2 startup beeps (just like official app)
               delay(500);
-              sendRequest(COMMAND_DEVICE_INFO);
+              sendRequest(COMMAND_DEVICE_INFO); // 1st beep
               delay(1000);
-              sendRequest(COMMAND_CELL_INFO);
+              sendRequest(COMMAND_CELL_INFO);   // 2nd beep -> starts continuous notification stream
+              lastNotificationTime = millis();
             }
           }
         }
@@ -309,16 +348,22 @@ void loop() {
     }
   }
 
-  // Periodic request (keep stream alive)
-  if (pClient->isConnected()) {
-    sendRequest(COMMAND_CELL_INFO);
+  // 3. Keep stream alive ONLY IF notifications stalled > 30 seconds
+  // The BMS automatically streams notifications once started.
+  // DO NOT send sendRequest in the loop - doing so is what triggers the repetitive single beeps!
+  if (pClient && pClient->isConnected()) {
+    if (lastNotificationTime > 0 && (millis() - lastNotificationTime > 30000)) {
+      Serial.println("[BLE] Notification stream silent for >30s, sending keepalive query...");
+      sendRequest(COMMAND_CELL_INFO);
+      lastNotificationTime = millis();
+    }
   }
 
-  // Upload to Cloudflare D1
-  if (millis() - lastUploadTime > UPLOAD_INTERVAL_MS) {
-    uploadToCloudflare();
+  // 4. Publish MQTT Telemetry every UPLOAD_INTERVAL_MS
+  if (millis() - lastUploadTime >= UPLOAD_INTERVAL_MS) {
+    publishMqttTelemetry();
     lastUploadTime = millis();
   }
 
-  delay(2000);
+  delay(50); // Yield to BLE and Wi-Fi background stacks
 }

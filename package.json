@@ -7,7 +7,9 @@
     "typecheck": "tsc --noEmit && cd frontend && npm run typecheck",
     "build:frontend": "cd frontend && npm install --silent && node build.js",
     "build:workers": "esbuild workers/ingest/src/index.ts --outfile=workers/ingest/src/index.js --format=esm --target=es2022 && esbuild workers/dashboard/src/index.ts --outfile=workers/dashboard/src/index.js --format=esm --target=es2022",
-    "build": "npm run build:workers && npm run build:frontend",
+    "build:bridge": "esbuild scripts/mqtt_bridge.ts --bundle --platform=node --target=node18 --outfile=dist/mqtt_bridge.js",
+    "start:bridge": "npm run build:bridge && node dist/mqtt_bridge.js",
+    "build": "npm run build:workers && npm run build:bridge && npm run build:frontend",
     "deploy:ingest": "npm run build:workers && cd workers/ingest && wrangler deploy",
     "deploy:dashboard": "npm run build && cd workers/dashboard && wrangler deploy",
     "deploy": "npm run build && cd workers/ingest && wrangler deploy && cd ../dashboard && wrangler deploy",
@@ -17,5 +19,8 @@
     "@cloudflare/workers-types": "^5.20261108.1",
     "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "mqtt": "^5.16.1"
   }
 }
