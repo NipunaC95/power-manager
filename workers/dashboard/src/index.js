@@ -3,13 +3,182 @@
  *
  * Dedicated worker for:
  * 1. Serving read-only telemetry queries from Cloudflare D1
- * 2. Serving the React web application static assets
+ * 2. Realtime WebSocket streaming to the React dashboard (/api/ws, /ws)
+ * 3. Serving the React web application static assets
  */
+
+// ── Database Query Helpers ────────────────────────────────────
+
+async function getLatestTelemetry(env) {
+  const t = await env.DB.prepare(
+    "SELECT * FROM bms_telemetry ORDER BY timestamp DESC LIMIT 1"
+  ).first();
+
+  if (!t) return null;
+
+  // 1. Try fetching from cell_data table
+  const cellRows = await env.DB.prepare(
+    "SELECT cell_index, voltage FROM cell_data WHERE telemetry_id = ? ORDER BY cell_index"
+  ).bind(t.id).all();
+
+  let cells = (cellRows.results || []).map((r) => r.voltage);
+
+  // Fallback for legacy rows where cells were stored in cell_voltages string
+  if (cells.length === 0 && t.cell_voltages) {
+    try {
+      cells = JSON.parse(t.cell_voltages);
+    } catch {
+      cells = [];
+    }
+  }
+
+  // Compute derived values dynamically
+  const power = t.total_voltage * t.current;
+  const cell_min = cells.length ? Math.min(...cells) : null;
+  const cell_max = cells.length ? Math.max(...cells) : null;
+  const cell_diff = cell_min != null ? cell_max - cell_min : null;
+
+  return {
+    ...t,
+    power,
+    cell_voltages: cells,
+    cell_min_voltage: cell_min,
+    cell_max_voltage: cell_max,
+    cell_diff,
+  };
+}
+
+async function getHistoryTelemetry(env, limit = 100) {
+  const boundedLimit = Math.min(limit, 500);
+  const results = await env.DB.prepare(
+    "SELECT * FROM bms_telemetry ORDER BY timestamp DESC LIMIT ?"
+  ).bind(boundedLimit).all();
+
+  return (results.results || []).reverse().map((t) => {
+    let cells = [];
+    if (t.cell_voltages) {
+      try {
+        cells = JSON.parse(t.cell_voltages);
+      } catch {
+        cells = [];
+      }
+    }
+    return {
+      ...t,
+      power: t.total_voltage * t.current,
+      cell_voltages: cells,
+    };
+  });
+}
+
+// ── WebSocket Session Handler ─────────────────────────────────
+
+function handleWebSocketSession(server, env) {
+  let isAlive = true;
+  let interval = null;
+  let heartbeat = null;
+  let lastTimestamp = null;
+
+  const send = (obj) => {
+    if (!isAlive) return;
+    try {
+      server.send(JSON.stringify(obj));
+    } catch (e) {
+      cleanup();
+    }
+  };
+
+  const cleanup = () => {
+    isAlive = false;
+    if (interval) clearInterval(interval);
+    if (heartbeat) clearInterval(heartbeat);
+  };
+
+  const pushLatestAndHistory = async () => {
+    try {
+      const [latest, history] = await Promise.all([
+        getLatestTelemetry(env),
+        getHistoryTelemetry(env, 100),
+      ]);
+      if (latest?.timestamp) {
+        lastTimestamp = latest.timestamp;
+      }
+      send({ type: "init", latest, history });
+    } catch (err) {
+      console.error("WS init push error:", err);
+    }
+  };
+
+  const checkTelemetryUpdate = async () => {
+    if (!isAlive) return;
+    try {
+      const latest = await getLatestTelemetry(env);
+      if (latest && latest.timestamp !== lastTimestamp) {
+        lastTimestamp = latest.timestamp;
+        send({ type: "telemetry", latest });
+      }
+    } catch (err) {
+      // transient read error
+    }
+  };
+
+  server.addEventListener("message", async (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === "ping") {
+        send({ type: "pong" });
+      } else if (data.type === "refresh") {
+        await pushLatestAndHistory();
+      }
+    } catch (e) {}
+  });
+
+  server.addEventListener("close", () => {
+    cleanup();
+  });
+
+  server.addEventListener("error", () => {
+    cleanup();
+  });
+
+  // Push initial data
+  pushLatestAndHistory();
+
+  // Poll database for fresh telemetry updates every 2s
+  interval = setInterval(checkTelemetryUpdate, 2000);
+
+  // Keep connection alive every 25s
+  heartbeat = setInterval(() => {
+    send({ type: "ping" });
+  }, 25000);
+}
+
+// ── Worker Fetch Handler ──────────────────────────────────────
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // ── WebSocket Upgrade (/api/ws or /ws) ───────────────────
+    if (url.pathname === "/api/ws" || url.pathname === "/ws") {
+      const upgradeHeader = request.headers.get("Upgrade");
+      if (!upgradeHeader || upgradeHeader.toLowerCase() !== "websocket") {
+        return new Response("Expected Upgrade: websocket", { status: 426 });
+      }
+
+      const webSocketPair = new WebSocketPair();
+      const [client, server] = Object.values(webSocketPair);
+
+      server.accept();
+      handleWebSocketSession(server, env);
+
+      return new Response(null, {
+        status: 101,
+        webSocket: client,
+      });
+    }
+
+    // CORS headers for HTTP GET
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -26,74 +195,20 @@ export default {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
 
-    // ── GET /api/latest — most recent reading + cells ───────
+    // ── GET /api/latest ─────────────────────────────────────
     if (url.pathname === "/api/latest" && request.method === "GET") {
-      const t = await env.DB.prepare(
-        "SELECT * FROM bms_telemetry ORDER BY timestamp DESC LIMIT 1"
-      ).first();
-
-      if (!t) return json({});
-
-      // 1. Try fetching from cell_data table
-      const cellRows = await env.DB.prepare(
-        "SELECT cell_index, voltage FROM cell_data WHERE telemetry_id = ? ORDER BY cell_index"
-      ).bind(t.id).all();
-
-      let cells = (cellRows.results || []).map((r) => r.voltage);
-
-      // Fallback for legacy rows where cells were stored in cell_voltages string
-      if (cells.length === 0 && t.cell_voltages) {
-        try {
-          cells = JSON.parse(t.cell_voltages);
-        } catch {
-          cells = [];
-        }
-      }
-
-      // Compute derived values dynamically
-      const power = t.total_voltage * t.current;
-      const cell_min = cells.length ? Math.min(...cells) : null;
-      const cell_max = cells.length ? Math.max(...cells) : null;
-      const cell_diff = cell_min != null ? cell_max - cell_min : null;
-
-      return json({
-        ...t,
-        power,
-        cell_voltages: cells,
-        cell_min_voltage: cell_min,
-        cell_max_voltage: cell_max,
-        cell_diff,
-      });
+      const latest = await getLatestTelemetry(env);
+      return json(latest || {});
     }
 
-    // ── GET /api/history — recent readings ──────────────────
+    // ── GET /api/history ────────────────────────────────────
     if (url.pathname === "/api/history" && request.method === "GET") {
       const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 500);
-
-      const results = await env.DB.prepare(
-        "SELECT * FROM bms_telemetry ORDER BY timestamp DESC LIMIT ?"
-      ).bind(limit).all();
-
-      const rows = (results.results || []).reverse().map((t) => {
-        let cells = [];
-        if (t.cell_voltages) {
-          try {
-            cells = JSON.parse(t.cell_voltages);
-          } catch {
-            cells = [];
-          }
-        }
-        return {
-          ...t,
-          power: t.total_voltage * t.current,
-          cell_voltages: cells,
-        };
-      });
-
-      return json(rows);
+      const history = await getHistoryTelemetry(env, limit);
+      return json(history);
     }
 
-    // ── GET /api/cells?cell=0&limit=200 — single cell history ─
+    // ── GET /api/cells?cell=0&limit=200 ─────────────────────
     if (url.pathname === "/api/cells" && request.method === "GET") {
       const cellIndex = parseInt(url.searchParams.get("cell") ?? "0");
       const limit = Math.min(parseInt(url.searchParams.get("limit") || "200"), 1000);
@@ -110,7 +225,7 @@ export default {
       return json((results.results || []).reverse());
     }
 
-    // ── GET /api/cells/latest — all cells across recent readings
+    // ── GET /api/cells/latest ───────────────────────────────
     if (url.pathname === "/api/cells/latest" && request.method === "GET") {
       const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 200);
 
@@ -127,7 +242,7 @@ export default {
       return json(results.results || []);
     }
 
-    // ── Serve static frontend ──────────────────────────────
+    // ── Serve static frontend ───────────────────────────────
     if (env.ASSETS) {
       return env.ASSETS.fetch(request);
     }
@@ -135,4 +250,3 @@ export default {
     return new Response("Not found", { status: 404 });
   },
 };
-

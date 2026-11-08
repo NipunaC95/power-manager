@@ -1,67 +1,143 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 
-// Custom hook to fetch latest telemetry and history from the Cloudflare Worker API.
-// It polls /api/latest every 5 seconds and /api/history every 30 seconds.
+/**
+ * useTelemetry Hook
+ *
+ * Establishes a realtime WebSocket connection to the Dashboard Worker (/api/ws).
+ * Automatically streams fresh telemetry readings as they arrive.
+ * Includes automatic reconnect with backoff and graceful HTTP fallback.
+ */
 export function useTelemetry() {
   const [latest, setLatest] = useState(null);
   const [history, setHistory] = useState([]);
+  const [isWsConnected, setIsWsConnected] = useState(false);
 
-  // Helper to fetch JSON and handle errors gracefully.
-  const fetchJson = async (url) => {
+  const wsRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
+  const isMountedRef = useRef(true);
+
+  // Helper to fetch via HTTP fallback
+  const fetchJson = useCallback(async (url) => {
     try {
       const resp = await fetch(url);
-      if (!resp.ok) {
-        console.error(`Failed to fetch ${url}:`, resp.status, resp.statusText);
-        return null;
-      }
+      if (!resp.ok) return null;
       return await resp.json();
     } catch (e) {
-      console.error(`Error fetching ${url}:`, e);
       return null;
     }
-  };
-
-  // Poll latest telemetry every 5 seconds.
-  useEffect(() => {
-    let cancelled = false;
-    const poll = async () => {
-      const data = await fetchJson('/api/latest');
-      if (!cancelled && data) setLatest(data);
-    };
-    poll();
-    const interval = setInterval(poll, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
   }, []);
 
-  // Poll history every 30 seconds.
-  useEffect(() => {
-    let cancelled = false;
-    const poll = async () => {
-      const data = await fetchJson('/api/history');
-      if (!cancelled && data) setHistory(data);
-    };
-    poll();
-    const interval = setInterval(poll, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
+  const refreshHttp = useCallback(async () => {
+    const [dLatest, dHistory] = await Promise.all([
+      fetchJson('/api/latest'),
+      fetchJson('/api/history'),
+    ]);
+    if (isMountedRef.current) {
+      if (dLatest) setLatest(dLatest);
+      if (Array.isArray(dHistory)) setHistory(dHistory);
+    }
+  }, [fetchJson]);
+
+  // Connect WebSocket
+  const connectWs = useCallback(() => {
+    if (!isMountedRef.current) return;
+
+    try {
+      const isHttps = window.location.protocol === 'https:';
+      const wsProtocol = isHttps ? 'wss:' : 'ws:';
+      const wsUrl = `${wsProtocol}//${window.location.host}/api/ws`;
+
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        if (!isMountedRef.current) return;
+        setIsWsConnected(true);
+      };
+
+      ws.onmessage = (event) => {
+        if (!isMountedRef.current) return;
+        try {
+          const msg = JSON.parse(event.data);
+
+          if (msg.type === 'init') {
+            if (msg.latest) setLatest(msg.latest);
+            if (Array.isArray(msg.history)) setHistory(msg.history);
+          } else if (msg.type === 'telemetry') {
+            if (msg.latest) {
+              setLatest(msg.latest);
+              setHistory((prev) => {
+                const next = [...prev, msg.latest];
+                return next.slice(-100);
+              });
+            }
+          } else if (msg.type === 'ping') {
+            ws.send(JSON.stringify({ type: 'pong' }));
+          }
+        } catch (e) {}
+      };
+
+      ws.onerror = () => {
+        if (wsRef.current === ws) {
+          setIsWsConnected(false);
+        }
+      };
+
+      ws.onclose = () => {
+        if (wsRef.current === ws) {
+          setIsWsConnected(false);
+          wsRef.current = null;
+          // Reconnect with 3-second delay
+          if (isMountedRef.current) {
+            reconnectTimeoutRef.current = setTimeout(connectWs, 3000);
+          }
+        }
+      };
+    } catch (err) {
+      setIsWsConnected(false);
+      reconnectTimeoutRef.current = setTimeout(connectWs, 5000);
+    }
   }, []);
 
-  // Also listen for manual refresh via custom event 'fetchNow'.
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    // 1. Initial HTTP fetch for instantaneous display
+    refreshHttp();
+
+    // 2. Establish WebSocket stream
+    connectWs();
+
+    // 3. Fallback polling only when WebSocket is NOT connected
+    const fallbackInterval = setInterval(() => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        refreshHttp();
+      }
+    }, 5000);
+
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(fallbackInterval);
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [connectWs, refreshHttp]);
+
+  // Handle manual refresh ('fetchNow' event from Sync button)
   useEffect(() => {
     const handler = () => {
-      // Trigger immediate fetches.
-      fetchJson('/api/latest').then((d) => d && setLatest(d));
-      fetchJson('/api/history').then((d) => d && setHistory(d));
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'refresh' }));
+      }
+      refreshHttp();
     };
+
     window.addEventListener('fetchNow', handler);
     return () => window.removeEventListener('fetchNow', handler);
-  }, []);
+  }, [refreshHttp]);
 
-  return { latest, history };
+  return { latest, history, isWsConnected };
 }
-

@@ -1,7 +1,7 @@
 import React from 'react';
 import { timeAgo } from '../utils/format.js';
 
-export default function Header({ latest, isCharging, isDischarging, isOnline }) {
+export default function Header({ latest, isCharging, isDischarging, isOnline, isWsConnected }) {
   const lastUpdate = latest?.timestamp ? timeAgo(latest.timestamp) : null;
 
   return (
@@ -39,10 +39,14 @@ export default function Header({ latest, isCharging, isDischarging, isOnline }) 
           </div>
 
           {/* Connection */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono bg-neutral-900 border border-white/10">
-            <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono bg-neutral-900 border border-white/10"
+               title={isWsConnected ? "Connected via Realtime WebSocket" : isOnline ? "Connected via HTTP Polling" : "Offline"}>
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              isWsConnected ? 'bg-emerald-400 animate-ping' :
+              isOnline ? 'bg-emerald-400' : 'bg-rose-500'
+            }`} />
             <span className={isOnline ? 'text-neutral-300' : 'text-rose-400'}>
-              {isOnline ? 'ONLINE' : 'OFFLINE'}
+              {isWsConnected ? 'WS LIVE' : isOnline ? 'ONLINE' : 'OFFLINE'}
             </span>
           </div>
 

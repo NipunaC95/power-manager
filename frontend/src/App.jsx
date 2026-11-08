@@ -10,7 +10,7 @@ import CellDetail from './components/CellDetail.jsx';
 import SwitchIndicator from './components/SwitchIndicator.jsx';
 
 export default function App() {
-  const { latest, history } = useTelemetry();
+  const { latest, history, isWsConnected } = useTelemetry();
   const [selectedCell, setSelectedCell] = useState(null);
 
   const val = (key) => latest?.[key] ?? null;
@@ -39,7 +39,13 @@ export default function App() {
   return (
     <div className="max-w-5xl mx-auto bg-[#18181b]/95 border-x border-white/10 min-h-screen px-4 sm:px-8 py-6 flex flex-col justify-between shadow-2xl">
       <div>
-        <Header latest={latest} isCharging={isCharging} isDischarging={isDischarging} isOnline={isOnline} />
+        <Header
+          latest={latest}
+          isCharging={isCharging}
+          isDischarging={isDischarging}
+          isOnline={isOnline}
+          isWsConnected={isWsConnected}
+        />
 
         {/* Section 1: Core Pack Telemetry */}
         <section className="mb-6">

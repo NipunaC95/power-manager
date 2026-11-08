@@ -2,7 +2,7 @@
  * Local dev server for JK-BMS React frontend.
  *
  * - Serves static files from public/ (your React app)
- * - Proxies /api/* requests to the LIVE Cloudflare Worker
+ * - Proxies HTTP /api/* and WebSocket /api/ws requests to the LIVE Cloudflare Worker
  * - esbuild watches for source changes and rebuilds bundle.js automatically
  *
  * Usage: npm run dev
@@ -14,7 +14,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 // ── Config ──────────────────────────────────────────────────
-// Defaults to the dashboard worker, fallback to ingest worker
+// Defaults to the dashboard worker
 const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://jkbms-dashboard.vcode-fiverr.workers.dev';
 const INGEST_URL = 'https://jkbms-cloud.vcode-fiverr.workers.dev';
 const PUBLIC_DIR = path.resolve(__dirname, '..', 'public');
@@ -71,7 +71,6 @@ function proxyRequest(targetUrl, req, res, onError) {
   delete opts.headers['transfer-encoding'];
 
   const proxy = https.request(opts, (upstream) => {
-    // If dashboard worker gives 404 or 502 (e.g. not deployed yet), allow fallback
     if ((upstream.statusCode === 404 || upstream.statusCode === 502) && onError) {
       onError();
       return;
@@ -97,7 +96,6 @@ function proxyRequest(targetUrl, req, res, onError) {
 // ── 2) Local HTTP server with smart proxy ───────────────────
 const server = http.createServer((req, res) => {
   if (req.url.startsWith('/api/')) {
-    // Try primary worker, fallback to ingest worker if needed
     proxyRequest(activeWorkerUrl, req, res, () => {
       if (activeWorkerUrl !== INGEST_URL) {
         activeWorkerUrl = INGEST_URL;
@@ -134,12 +132,55 @@ const server = http.createServer((req, res) => {
   });
 });
 
+// ── 3) WebSocket Upgrade Proxy ──────────────────────────────
+server.on('upgrade', (req, socket, head) => {
+  if (req.url.startsWith('/api/ws') || req.url.startsWith('/ws')) {
+    const target = new URL(req.url, activeWorkerUrl);
+    const upstreamReq = https.request({
+      hostname: target.hostname,
+      port: 443,
+      path: target.pathname + target.search,
+      method: 'GET',
+      headers: {
+        ...req.headers,
+        host: target.hostname,
+        connection: 'Upgrade',
+        upgrade: 'websocket',
+      },
+    });
+
+    upstreamReq.on('upgrade', (upstreamRes, upstreamSocket, upstreamHead) => {
+      let headersStr = `HTTP/1.1 101 Switching Protocols\r\n`;
+      for (const [k, v] of Object.entries(upstreamRes.headers)) {
+        headersStr += `${k}: ${v}\r\n`;
+      }
+      headersStr += '\r\n';
+      socket.write(headersStr);
+
+      if (upstreamHead && upstreamHead.length > 0) socket.write(upstreamHead);
+      if (head && head.length > 0) upstreamSocket.write(head);
+
+      socket.pipe(upstreamSocket);
+      upstreamSocket.pipe(socket);
+    });
+
+    upstreamReq.on('error', (err) => {
+      console.error(`\x1b[31m[ws-proxy]\x1b[0m ${err.message}`);
+      socket.destroy();
+    });
+
+    upstreamReq.end();
+  } else {
+    socket.destroy();
+  }
+});
+
 server.listen(PORT, () => {
   console.log('');
   console.log(`\x1b[33m⚡ JK-BMS Dev Server\x1b[0m`);
   console.log(`\x1b[33m   App:        http://localhost:${PORT}\x1b[0m`);
   console.log(`\x1b[33m   API Proxy:  ${activeWorkerUrl}\x1b[0m`);
-  console.log(`\x1b[33m   Fallback:   ${INGEST_URL}\x1b[0m`);
+  console.log(`\x1b[33m   WebSocket:  ws://localhost:${PORT}/api/ws\x1b[0m`);
   console.log('');
   console.log('   Edit files in frontend/src/ — bundle rebuilds automatically.');
   console.log('   Refresh browser to see changes.\n');
