@@ -62,7 +62,7 @@ export default function App() {
 
       {/* Cell detail or grid */}
       {selectedCell != null ? (
-        <CellDetail cellIndex={selectedCell} cells={cells}
+        <CellDetail cellIndex={selectedCell} cells={cells} history={history}
           onCellChange={setSelectedCell} onBack={() => setSelectedCell(null)} />
       ) : (
         <CellGrid cells={cells} minV={minV} maxV={maxV} onCellClick={setSelectedCell} />

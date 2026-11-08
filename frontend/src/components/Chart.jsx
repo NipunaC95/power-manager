@@ -11,7 +11,11 @@ export default function Chart({ title, data, getValue, unit, color, fillColor, d
 
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const range = max - min || 1;
+  const valDiff = max - min;
+  const padding = valDiff === 0 ? (Math.abs(min) * 0.01 || 0.05) : valDiff * 0.08;
+  const plotMin = min - padding;
+  const plotMax = max + padding;
+  const range = plotMax - plotMin || 1;
   const latest = values[values.length - 1];
 
   const W = 300;
@@ -22,7 +26,7 @@ export default function Chart({ title, data, getValue, unit, color, fillColor, d
 
   const points = values.map((v, i) => ({
     x: (i / (values.length - 1)) * plotW,
-    y: PAD_T + plotH - ((v - min) / range) * plotH,
+    y: PAD_T + plotH - ((v - plotMin) / range) * plotH,
   }));
 
   const line = points.map((p) => `${p.x},${p.y}`).join(' ');
@@ -32,9 +36,9 @@ export default function Chart({ title, data, getValue, unit, color, fillColor, d
     `${points[points.length - 1].x},${PAD_T + plotH}`,
   ].join(' ');
 
-  const gridLines = [0, 0.5, 1].map((frac) => ({
+  const gridLines = [0.1, 0.5, 0.9].map((frac) => ({
     y: PAD_T + plotH - frac * plotH,
-    label: (min + frac * range).toFixed(decimals),
+    label: (plotMin + frac * range).toFixed(decimals),
   }));
 
   const firstTs = formatTime(timestamps[0]);
