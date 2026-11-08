@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTelemetry } from './hooks/useTelemetry.js';
 import { parseCells } from './utils/format.js';
-import { loadSettings, calculateSoc, fetchSettingsApi } from './utils/soc.js';
+import { loadSettings, calculateSoc, calculateCapacityRemaining, calculateSoh, fetchSettingsApi } from './utils/soc.js';
 
 import Header from './components/Header.jsx';
 import Metric from './components/Metric.jsx';
@@ -34,20 +34,36 @@ export default function App() {
 
   const current = val('current');
   const displaySoc = calculateSoc(latest, settings);
+  const displayCapacity = calculateCapacityRemaining(latest, settings, displaySoc);
+  const displaySoh = calculateSoh(latest, settings);
+
   const isCharging = current != null && Number(current) > 0.5;
   const isDischarging = current != null && Number(current) < -0.5;
   const isOnline = !!latest;
 
-  const runtime = (() => {
-    const rawCap = val('capacity_remaining');
-    const cap = (rawCap && Number(rawCap) > 0)
-      ? Number(rawCap)
-      : (displaySoc / 100) * (settings.batteryCapacityAh || 100);
-    if (cap == null || current == null || Number(current) >= 0) return null;
-    const h = Number(cap) / Math.abs(Number(current));
-    if (h > 24) return `${(h / 24).toFixed(1)}d`;
-    if (h >= 1) return `${h.toFixed(1)}h`;
-    return `${(h * 60).toFixed(0)}m`;
+  const runtimeInfo = (() => {
+    const cur = Number(current);
+    if (!latest || isNaN(cur) || Math.abs(cur) < 0.1) {
+      return isOnline ? 'Pack idle' : null;
+    }
+    if (cur < -0.1) {
+      if (displayCapacity == null || displayCapacity <= 0) return null;
+      const hours = displayCapacity / Math.abs(cur);
+      if (!isFinite(hours) || hours <= 0) return null;
+      const days = (hours / 24).toFixed(1);
+      const str = hours > 24 ? `${hours.toFixed(0)}h (${days}d)` : hours >= 1 ? `${hours.toFixed(1)}h` : `${Math.round(hours * 60)}m`;
+      return `${str} remaining`;
+    }
+    if (cur > 0.1) {
+      const ratedAh = Number(settings?.batteryCapacityAh) || 100;
+      const neededAh = Math.max(0, ratedAh - (displayCapacity || 0));
+      if (neededAh <= 0.1) return 'Fully charged';
+      const hours = neededAh / cur;
+      if (!isFinite(hours) || hours <= 0) return null;
+      const str = hours >= 1 ? `${hours.toFixed(1)}h` : `${Math.round(hours * 60)}m`;
+      return `${str} to full`;
+    }
+    return null;
   })();
 
   return (
@@ -130,7 +146,7 @@ export default function App() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                 <Metric
                   label="Cell Delta"
                   value={cellDiffMv}
@@ -138,14 +154,21 @@ export default function App() {
                   color={cellDiffMv !== '—' && Number(cellDiffMv) > 30 ? 'text-[#BF3C27]' : 'text-neutral-200'}
                   sub={cellDiffMv !== '—' && Number(cellDiffMv) <= 15 ? 'Excellent balance' : null}
                 />
+                <Metric
+                  label="State of Health"
+                  value={displaySoh}
+                  unit="%"
+                  color={displaySoh < 80 ? 'text-[#BF3C27]' : 'text-emerald-400'}
+                  sub={settings.sohOverride != null && settings.sohOverride < 100 ? 'Manual SOH override' : 'Optimal health'}
+                />
                 <Metric label="MOSFET Temp" value={fmt('temp_mos')} unit="°C" />
                 <Metric label="Probe Temp 1" value={fmt('temp_battery_1')} unit="°C" />
                 <Metric label="Probe Temp 2" value={fmt('temp_battery_2')} unit="°C" />
                 <Metric
                   label="Capacity Left"
-                  value={fmt('capacity_remaining', 1)}
+                  value={displayCapacity != null ? displayCapacity.toFixed(1) : '—'}
                   unit="Ah"
-                  sub={runtime ? `~${runtime} remaining` : null}
+                  sub={runtimeInfo}
                 />
               </div>
             </section>

@@ -36,6 +36,8 @@ struct BmsData {
   float current = 0.0;
   int soc = 0;
   float capacity_remaining = 0.0;
+  float nominal_capacity = 0.0;
+  uint32_t cycle_count = 0;
   float temp_mos = 0.0;
   float temp_bat1 = 0.0;
   float temp_bat2 = 0.0;
@@ -124,12 +126,25 @@ void parseJKFrame(const uint8_t* data, size_t length) {
       } else if (tag == 0x85) {
         bmsData.soc = frameBuffer[idx++];
       } else if (tag == 0x87) {
+        bmsData.cycle_count = ((frameBuffer[idx] << 24) | (frameBuffer[idx + 1] << 16) |
+                               (frameBuffer[idx + 2] << 8) | frameBuffer[idx + 3]);
+        idx += 4;
+      } else if (tag == 0xAA) {
+        bmsData.nominal_capacity = ((frameBuffer[idx] << 24) | (frameBuffer[idx + 1] << 16) |
+                                    (frameBuffer[idx + 2] << 8) | frameBuffer[idx + 3]) / 1000.0;
+        idx += 4;
+      } else if (tag == 0xB9) {
         bmsData.capacity_remaining = ((frameBuffer[idx] << 24) | (frameBuffer[idx + 1] << 16) |
                                       (frameBuffer[idx + 2] << 8) | frameBuffer[idx + 3]) / 1000.0;
         idx += 4;
       } else {
         idx++;
       }
+    }
+
+    // Fallback: derive capacity_remaining from SOC & nominal capacity if uncalibrated
+    if (bmsData.capacity_remaining <= 0.001 && bmsData.nominal_capacity > 0.0) {
+      bmsData.capacity_remaining = (bmsData.soc / 100.0) * bmsData.nominal_capacity;
     }
 
     bmsData.updated = true;
