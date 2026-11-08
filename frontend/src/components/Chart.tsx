@@ -1,7 +1,20 @@
 import React, { useRef, useState } from 'react';
-import { formatTime } from '../utils/format.js';
+import { formatTime } from '../utils/format';
 
-export default function Chart({
+export interface ChartProps<T = any> {
+  title: string;
+  data: T[];
+  getValue: (item: T) => number | null | undefined;
+  unit: string;
+  color?: string;
+  fillColor?: string;
+  decimals?: number;
+  selectedIndex?: number | null;
+  onSelectIndex?: (index: number | null) => void;
+  powerValue?: number | null;
+}
+
+export default function Chart<T extends { timestamp?: string; total_voltage?: number; current?: number }>({
   title,
   data,
   getValue,
@@ -12,19 +25,22 @@ export default function Chart({
   selectedIndex: controlledIndex,
   onSelectIndex: setControlledIndex,
   powerValue: explicitPowerValue,
-}) {
+}: ChartProps<T>) {
   // Independent selection state per chart when not externally controlled
-  const [internalIndex, setInternalIndex] = useState(null);
+  const [internalIndex, setInternalIndex] = useState<number | null>(null);
   const selectedIndex = controlledIndex !== undefined ? controlledIndex : internalIndex;
   const onSelectIndex = setControlledIndex || setInternalIndex;
 
-  const svgRef = useRef(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
 
-  const values = data.map(getValue).filter((v) => v != null && isFinite(v));
+  const values = data.map(getValue).filter((v): v is number => v != null && isFinite(v));
   if (values.length < 2) return null;
 
   const timestamps = data
-    .filter((d) => getValue(d) != null && isFinite(getValue(d)))
+    .filter((d) => {
+      const v = getValue(d);
+      return v != null && isFinite(v);
+    })
     .map((d) => d.timestamp);
 
   const min = Math.min(...values);
@@ -78,10 +94,10 @@ export default function Chart({
       : null;
   const activePower = explicitPowerValue !== undefined ? explicitPowerValue : computedPower;
 
-  const handlePointerInteraction = (e) => {
+  const handlePointerInteraction = (e: React.MouseEvent | React.TouchEvent) => {
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientX = 'touches' in e && e.touches.length ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const x = clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, x / rect.width));
     const idx = Math.round(ratio * (values.length - 1));

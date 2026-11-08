@@ -1,11 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import Chart from './Chart.jsx';
-import Metric from './Metric.jsx';
-import { parseCells } from '../utils/format.js';
+import Chart from './Chart';
+import Metric from './Metric';
+import { parseCells } from '../utils/format';
+import { TelemetryData } from '../types';
 
-export default function CellDetail({ cellIndex, cells, history, onCellChange, onBack }) {
-  const [apiHistory, setApiHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+export interface CellDetailProps {
+  cellIndex: number;
+  cells: number[];
+  history: TelemetryData[];
+  onCellChange: (index: number) => void;
+  onBack: () => void;
+}
+
+interface CellRecord {
+  voltage: number;
+  timestamp?: string;
+  total_voltage?: number;
+  current?: number;
+}
+
+export default function CellDetail({ cellIndex, cells, history, onCellChange, onBack }: CellDetailProps) {
+  const [apiHistory, setApiHistory] = useState<CellRecord[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const voltage = cells[cellIndex] != null ? cells[cellIndex] : null;
   const num = cellIndex + 1;
@@ -29,17 +45,22 @@ export default function CellDetail({ cellIndex, cells, history, onCellChange, on
   }, [cellIndex]);
 
   // Fallback to pack history if needed
-  const historyData = apiHistory.length > 1
+  const historyData: CellRecord[] = apiHistory.length > 1
     ? apiHistory
     : (history || [])
         .map((row) => {
           const rowCells = parseCells(row);
           if (rowCells[cellIndex] == null) return null;
-          return { voltage: rowCells[cellIndex], timestamp: row.timestamp };
+          return {
+            voltage: rowCells[cellIndex],
+            timestamp: row.timestamp,
+            total_voltage: row.total_voltage,
+            current: row.current,
+          };
         })
-        .filter(Boolean);
+        .filter((item): item is CellRecord => item !== null);
 
-  const voltages = historyData.map((d) => d.voltage).filter((v) => v != null);
+  const voltages = historyData.map((d) => d.voltage).filter((v) => v != null && isFinite(v));
   const min = voltages.length ? Math.min(...voltages) : null;
   const max = voltages.length ? Math.max(...voltages) : null;
   const avg = voltages.length ? voltages.reduce((a, b) => a + b, 0) / voltages.length : null;
@@ -95,7 +116,7 @@ export default function CellDetail({ cellIndex, cells, history, onCellChange, on
       )}
 
       {/* Metric summary for selected cell */}
-      {voltages.length > 0 && (
+      {voltages.length > 0 && min != null && max != null && avg != null && (
         <div className="grid grid-cols-3 gap-3 mb-4">
           <Metric label="Recorded Min" value={min.toFixed(3)} unit="V" color="text-rose-300" />
           <Metric label="Running Avg" value={avg.toFixed(3)} unit="V" color="text-neutral-100" />

@@ -9,5 +9,9 @@
     "deploy:dashboard": "npm run build:frontend && cd workers/dashboard && wrangler deploy",
     "deploy": "npm run deploy:ingest && npm run deploy:dashboard",
     "db:init": "cd workers/ingest && wrangler d1 execute jkbms-db --remote --file=../../schema.sql"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261108.1",
+    "typescript": "^7.0.2"
   }
 }

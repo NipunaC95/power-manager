@@ -1,22 +1,30 @@
 import React, { useState } from 'react';
-import { DEFAULT_SETTINGS, calculateSoc, calculateCapacityRemaining, calculateSoh, saveSettingsApi } from '../utils/soc.js';
+import { DEFAULT_SETTINGS, calculateSoc, calculateCapacityRemaining, calculateSoh, saveSettingsApi } from '../utils/soc';
+import { BmsSettings, SocMethod, TelemetryData } from '../types';
 
-export default function Settings({ settings, onSave, onBack, latest }) {
-  const [form, setForm] = useState({ ...settings });
-  const [isSaving, setIsSaving] = useState(false);
-  const [savedNotice, setSavedNotice] = useState(false);
+export interface SettingsProps {
+  settings: BmsSettings;
+  onSave: (newSettings: BmsSettings) => void;
+  onBack: () => void;
+  latest: TelemetryData | null;
+}
+
+export default function Settings({ settings, onSave, onBack, latest }: SettingsProps) {
+  const [form, setForm] = useState<BmsSettings>({ ...settings });
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [savedNotice, setSavedNotice] = useState<boolean>(false);
 
   const previewSoc = calculateSoc(latest, form);
   const rawSoc = latest?.soc ?? '—';
   const previewCap = calculateCapacityRemaining(latest, form, previewSoc);
   const previewSoh = calculateSoh(latest, form);
 
-  const handleChange = (field, value) => {
+  const handleChange = <K extends keyof BmsSettings>(field: K, value: BmsSettings[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setSavedNotice(false);
   };
 
-  const handleSave = async (e) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     const updated = await saveSettingsApi(form);
@@ -167,7 +175,7 @@ export default function Settings({ settings, onSave, onBack, latest }) {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 font-mono text-xs">
                   <button
                     type="button"
-                    onClick={() => handleChange('socMethod', 'lifepo4_curve')}
+                    onClick={() => handleChange('socMethod', 'lifepo4_curve' as SocMethod)}
                     className={`p-3 rounded text-left border transition-all cursor-pointer ${
                       form.socMethod === 'lifepo4_curve'
                         ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
@@ -180,7 +188,7 @@ export default function Settings({ settings, onSave, onBack, latest }) {
 
                   <button
                     type="button"
-                    onClick={() => handleChange('socMethod', 'voltage_range')}
+                    onClick={() => handleChange('socMethod', 'voltage_range' as SocMethod)}
                     className={`p-3 rounded text-left border transition-all cursor-pointer ${
                       form.socMethod === 'voltage_range'
                         ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
@@ -193,7 +201,7 @@ export default function Settings({ settings, onSave, onBack, latest }) {
 
                   <button
                     type="button"
-                    onClick={() => handleChange('socMethod', 'capacity_ratio')}
+                    onClick={() => handleChange('socMethod', 'capacity_ratio' as SocMethod)}
                     className={`p-3 rounded text-left border transition-all cursor-pointer ${
                       form.socMethod === 'capacity_ratio'
                         ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'

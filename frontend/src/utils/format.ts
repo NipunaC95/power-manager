@@ -1,4 +1,7 @@
-export function timeAgo(ts) {
+import { TelemetryData } from '../types';
+
+export function timeAgo(ts?: string | null): string {
+  if (!ts) return '—';
   const d = new Date(ts.includes('Z') || ts.includes('+') ? ts : ts + 'Z');
   const diff = Math.floor((Date.now() - d.getTime()) / 1000);
   if (diff < 5) return 'just now';
@@ -8,18 +11,21 @@ export function timeAgo(ts) {
   return d.toLocaleDateString();
 }
 
-export function formatTime(ts) {
+export function formatTime(ts?: string | null): string {
   if (!ts) return '';
   const d = new Date(ts.includes('Z') || ts.includes('+') ? ts : ts + 'Z');
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-export function parseCells(latest) {
+export function parseCells(latest?: TelemetryData | null): number[] {
   if (!latest) return [];
   let cells = latest.cell_voltages;
   if (typeof cells === 'string') {
-    try { cells = JSON.parse(cells); } catch { return []; }
+    try {
+      cells = JSON.parse(cells);
+    } catch {
+      return [];
+    }
   }
   return Array.isArray(cells) ? cells.map(Number) : [];
 }
-

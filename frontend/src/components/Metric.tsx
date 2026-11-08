@@ -1,6 +1,15 @@
 import React from 'react';
 
-export default function Metric({ label, value, unit, large, color = 'text-neutral-100', sub }) {
+export interface MetricProps {
+  label: string;
+  value: string | number;
+  unit: string;
+  large?: boolean;
+  color?: string;
+  sub?: React.ReactNode;
+}
+
+export default function Metric({ label, value, unit, large = false, color = 'text-neutral-100', sub }: MetricProps) {
   return (
     <div className="bg-[#1b1b1f] border border-white/10 rounded-sm p-3.5 flex flex-col justify-between hover:border-white/20 transition-colors group">
       {/* Label with Zed style dashed/dotted sub-line */}

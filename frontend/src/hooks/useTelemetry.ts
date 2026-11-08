@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { TelemetryData } from '../types';
 
 /**
  * useTelemetry Hook
@@ -7,22 +8,28 @@ import { useEffect, useState, useRef, useCallback } from 'react';
  * Automatically streams fresh telemetry readings as they arrive.
  * Includes automatic reconnect with backoff and graceful HTTP fallback.
  */
-export function useTelemetry() {
-  const [latest, setLatest] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [isWsConnected, setIsWsConnected] = useState(false);
+export interface UseTelemetryReturn {
+  latest: TelemetryData | null;
+  history: TelemetryData[];
+  isWsConnected: boolean;
+}
 
-  const wsRef = useRef(null);
-  const reconnectTimeoutRef = useRef(null);
-  const isMountedRef = useRef(true);
+export function useTelemetry(): UseTelemetryReturn {
+  const [latest, setLatest] = useState<TelemetryData | null>(null);
+  const [history, setHistory] = useState<TelemetryData[]>([]);
+  const [isWsConnected, setIsWsConnected] = useState<boolean>(false);
+
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef<boolean>(true);
 
   // Helper to fetch via HTTP fallback
-  const fetchJson = useCallback(async (url) => {
+  const fetchJson = useCallback(async (url: string) => {
     try {
       const resp = await fetch(url);
       if (!resp.ok) return null;
       return await resp.json();
-    } catch (e) {
+    } catch {
       return null;
     }
   }, []);
@@ -74,7 +81,7 @@ export function useTelemetry() {
           } else if (msg.type === 'ping') {
             ws.send(JSON.stringify({ type: 'pong' }));
           }
-        } catch (e) {}
+        } catch {}
       };
 
       ws.onerror = () => {
@@ -93,7 +100,7 @@ export function useTelemetry() {
           }
         }
       };
-    } catch (err) {
+    } catch {
       setIsWsConnected(false);
       reconnectTimeoutRef.current = setTimeout(connectWs, 5000);
     }

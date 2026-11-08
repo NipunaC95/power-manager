@@ -1,7 +1,24 @@
 import React from 'react';
-import { timeAgo } from '../utils/format.js';
+import { timeAgo } from '../utils/format';
+import { TelemetryData } from '../types';
 
-export default function Header({ latest, isCharging, isDischarging, isOnline, isWsConnected, onOpenSettings }) {
+export interface HeaderProps {
+  latest: TelemetryData | null;
+  isCharging: boolean;
+  isDischarging: boolean;
+  isOnline: boolean;
+  isWsConnected: boolean;
+  onOpenSettings: () => void;
+}
+
+export default function Header({
+  latest,
+  isCharging,
+  isDischarging,
+  isOnline,
+  isWsConnected,
+  onOpenSettings,
+}: HeaderProps) {
   const lastUpdate = latest?.timestamp ? timeAgo(latest.timestamp) : null;
 
   return (
