@@ -47,18 +47,18 @@ export default function CellDetail({ cellIndex, cells, history, onCellChange, on
   // Fallback to pack history if needed
   const historyData: CellRecord[] = apiHistory.length > 1
     ? apiHistory
-    : (history || [])
-        .map((row) => {
-          const rowCells = parseCells(row);
-          if (rowCells[cellIndex] == null) return null;
-          return {
+    : (history || []).reduce<CellRecord[]>((acc, row) => {
+        const rowCells = parseCells(row);
+        if (rowCells[cellIndex] != null) {
+          acc.push({
             voltage: rowCells[cellIndex],
             timestamp: row.timestamp,
             total_voltage: row.total_voltage,
             current: row.current,
-          };
-        })
-        .filter((item): item is CellRecord => item !== null);
+          });
+        }
+        return acc;
+      }, []);
 
   const voltages = historyData.map((d) => d.voltage).filter((v) => v != null && isFinite(v));
   const min = voltages.length ? Math.min(...voltages) : null;

@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { useTelemetry } from './hooks/useTelemetry.js';
-import { parseCells } from './utils/format.js';
-import { loadSettings, calculateSoc, calculateCapacityRemaining, calculateSoh, fetchSettingsApi } from './utils/soc.js';
+import { useTelemetry } from './hooks/useTelemetry';
+import { parseCells } from './utils/format';
+import { loadSettings, calculateSoc, calculateCapacityRemaining, calculateSoh, fetchSettingsApi } from './utils/soc';
+import { BmsSettings, TelemetryData } from './types';
 
-import Header from './components/Header.jsx';
-import Metric from './components/Metric.jsx';
-import Chart from './components/Chart.jsx';
-import CellGrid from './components/CellGrid.jsx';
-import CellDetail from './components/CellDetail.jsx';
-import SwitchIndicator from './components/SwitchIndicator.jsx';
-import Settings from './components/Settings.jsx';
+import Header from './components/Header';
+import Metric from './components/Metric';
+import Chart from './components/Chart';
+import CellGrid from './components/CellGrid';
+import CellDetail from './components/CellDetail';
+import SwitchIndicator from './components/SwitchIndicator';
+import Settings from './components/Settings';
 
 export default function App() {
   const { latest, history, isWsConnected } = useTelemetry();
-  const [selectedCell, setSelectedCell] = useState(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState(loadSettings);
+  const [selectedCell, setSelectedCell] = useState<number | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [settings, setSettings] = useState<BmsSettings>(loadSettings);
 
   // Sync settings from Cloudflare D1 on mount
   useEffect(() => {
@@ -24,13 +25,16 @@ export default function App() {
     });
   }, []);
 
-  const val = (key) => latest?.[key] ?? null;
-  const fmt = (key, d = 1) => { const v = val(key); return v != null ? Number(v).toFixed(d) : '—'; };
+  const val = (key: keyof TelemetryData) => latest?.[key] ?? null;
+  const fmt = (key: keyof TelemetryData, d = 1): string => {
+    const v = val(key);
+    return v != null ? Number(v).toFixed(d) : '—';
+  };
 
   const cells = parseCells(latest);
   const minV = cells.length ? Math.min(...cells) : null;
   const maxV = cells.length ? Math.max(...cells) : null;
-  const cellDiffMv = minV != null ? ((maxV - minV) * 1000).toFixed(0) : '—';
+  const cellDiffMv = minV != null && maxV != null ? ((maxV - minV) * 1000).toFixed(0) : '—';
 
   const current = val('current');
   const displaySoc = calculateSoc(latest, settings);
@@ -232,7 +236,7 @@ export default function App() {
                   <Chart
                     title="Power History"
                     data={history}
-                    getValue={(d) => d.total_voltage * d.current}
+                    getValue={(d) => (d.total_voltage != null && d.current != null ? d.total_voltage * d.current : null)}
                     unit="W"
                     color="#e5933d"
                     fillColor="rgba(229, 147, 61, 0.06)"
