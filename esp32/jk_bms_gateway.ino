@@ -28,7 +28,7 @@ bool connectedToBms = false;                     // tracks BLE link state
 unsigned long lastWifiCheck = 0;
 unsigned long lastUploadTime = 0;
 unsigned long lastReconnectAttempt = 0;
-const unsigned long UPLOAD_INTERVAL_MS = 15000;   // 15 s
+const unsigned long UPLOAD_INTERVAL_MS = 5000;   // 5 s   // 15 s
 const unsigned long RECONNECT_COOLDOWN_MS = 3000; // 3 s back‑off
 
 struct BmsData {

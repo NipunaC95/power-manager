@@ -234,23 +234,7 @@ function updateUI(d) {
   }
 }
 
-// ---------- WebSocket Live Feed ----------
-function initWebSocket() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const ws = new WebSocket(`${proto}://${location.host}/ws`);
-  ws.onopen = () => console.log('WebSocket connected');
-  ws.onmessage = ev => {
-    try {
-      const d = JSON.parse(ev.data);
-      updateUI(d);
-    } catch (e) { console.error('WS parse error', e); }
-  };
-  ws.onclose = () => {
-    console.log('WebSocket closed, retrying in 5s');
-    setTimeout(initWebSocket, 5000);
-  };
-  ws.onerror = err => console.error('WebSocket error', err);
-}
+// WebSocket code removed – UI now uses HTTP polling only
 
 // ---------- Historical Chart ----------
 async function loadHistory() {
@@ -289,7 +273,7 @@ async function loadHistory() {
 
 function fetchNow() { loadHistory(); }
 
-initWebSocket();
+// ---------- UI update polling only (removed WebSocket)\n// Initialize UI updates\nloadLatest();\nloadHistory();\n// Poll latest telemetry every 5 seconds\nsetInterval(loadLatest, 5000);\n// Update history chart every 30 seconds\nsetInterval(loadHistory, 30000);
 loadHistory();
 setInterval(loadHistory, 30000);
 
