@@ -166,14 +166,11 @@ void uploadToCloudflare() {
   DynamicJsonDocument doc(2048);
   doc["total_voltage"] = bmsData.total_voltage;
   doc["current"] = bmsData.current;
-  doc["power"] = bmsData.total_voltage * bmsData.current;
   doc["soc"] = bmsData.soc;
   doc["capacity_remaining"] = bmsData.capacity_remaining;
-  doc["cell_min_voltage"] = bmsData.cell_min;
-  doc["cell_max_voltage"] = bmsData.cell_max;
-  doc["cell_diff"] = bmsData.cell_max - bmsData.cell_min;
   doc["temp_mos"] = bmsData.temp_mos;
   doc["temp_battery_1"] = bmsData.temp_bat1;
+  doc["temp_battery_2"] = bmsData.temp_bat2;
   doc["charging_enabled"] = 1;
   doc["discharging_enabled"] = 1;
 

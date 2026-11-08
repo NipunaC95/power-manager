@@ -1084,7 +1084,7 @@
             }
             return dispatcher.useContext(Context);
           }
-          function useState2(initialState) {
+          function useState3(initialState) {
             var dispatcher = resolveDispatcher();
             return dispatcher.useState(initialState);
           }
@@ -1096,7 +1096,7 @@
             var dispatcher = resolveDispatcher();
             return dispatcher.useRef(initialValue);
           }
-          function useEffect2(create, deps) {
+          function useEffect3(create, deps) {
             var dispatcher = resolveDispatcher();
             return dispatcher.useEffect(create, deps);
           }
@@ -1108,7 +1108,7 @@
             var dispatcher = resolveDispatcher();
             return dispatcher.useLayoutEffect(create, deps);
           }
-          function useCallback(callback, deps) {
+          function useCallback2(callback, deps) {
             var dispatcher = resolveDispatcher();
             return dispatcher.useCallback(callback, deps);
           }
@@ -1875,11 +1875,11 @@
           exports.memo = memo;
           exports.startTransition = startTransition;
           exports.unstable_act = act;
-          exports.useCallback = useCallback;
+          exports.useCallback = useCallback2;
           exports.useContext = useContext;
           exports.useDebugValue = useDebugValue;
           exports.useDeferredValue = useDeferredValue;
-          exports.useEffect = useEffect2;
+          exports.useEffect = useEffect3;
           exports.useId = useId;
           exports.useImperativeHandle = useImperativeHandle;
           exports.useInsertionEffect = useInsertionEffect;
@@ -1887,7 +1887,7 @@
           exports.useMemo = useMemo;
           exports.useReducer = useReducer;
           exports.useRef = useRef;
-          exports.useState = useState2;
+          exports.useState = useState3;
           exports.useSyncExternalStore = useSyncExternalStore;
           exports.useTransition = useTransition;
           exports.version = ReactVersion;
@@ -23619,6 +23619,7 @@
   // src/App.jsx
   function App() {
     const { latest, history } = useTelemetry();
+    const [selectedCell, setSelectedCell] = (0, import_react2.useState)(null);
     const val = (key, fallback = null) => latest && latest[key] != null ? latest[key] : fallback;
     const fmt = (key, decimals = 1) => {
       const v = val(key);
@@ -23699,12 +23700,45 @@
         unit: "Ah",
         sub: getRuntime() ? `~${getRuntime()} left` : null
       }
-    )), cells.length > 0 && /* @__PURE__ */ import_react2.default.createElement("div", { className: "mb-6" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-baseline justify-between mb-2" }, /* @__PURE__ */ import_react2.default.createElement("h2", { className: "text-xs font-medium text-slate-400 uppercase tracking-wide" }, "Cell Voltages"), /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-[11px] text-slate-500" }, minV.toFixed(3), "V min \xB7 ", maxV.toFixed(3), "V max")), /* @__PURE__ */ import_react2.default.createElement("div", { className: `grid gap-1.5 ${cells.length <= 8 ? "grid-cols-8" : "grid-cols-8 sm:grid-cols-16"}` }, cells.map((v, i) => /* @__PURE__ */ import_react2.default.createElement(CellTile, { key: i, index: i + 1, voltage: v, min: minV, max: maxV, count: cells.length })))), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex gap-3 mb-6" }, /* @__PURE__ */ import_react2.default.createElement(SwitchIndicator, { label: "Charge", enabled: val("charging_enabled") === 1 }), /* @__PURE__ */ import_react2.default.createElement(SwitchIndicator, { label: "Discharge", enabled: val("discharging_enabled") === 1 })), history.length > 0 && /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("h2", { className: "text-xs font-medium text-slate-400 uppercase tracking-wide mb-2" }, "History"), /* @__PURE__ */ import_react2.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 p-4" }, /* @__PURE__ */ import_react2.default.createElement(MiniChart, { data: history }))));
+    )), selectedCell != null && /* @__PURE__ */ import_react2.default.createElement(CellDetail, { cellIndex: selectedCell, cells, onBack: () => setSelectedCell(null) }), cells.length > 0 && selectedCell == null && /* @__PURE__ */ import_react2.default.createElement("div", { className: "mb-6" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-baseline justify-between mb-2" }, /* @__PURE__ */ import_react2.default.createElement("h2", { className: "text-xs font-medium text-slate-400 uppercase tracking-wide" }, "Cell Voltages"), /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-[11px] text-slate-500" }, minV.toFixed(3), "V min \xB7 ", maxV.toFixed(3), "V max")), /* @__PURE__ */ import_react2.default.createElement("div", { className: `grid gap-1.5 ${cells.length <= 8 ? "grid-cols-8" : "grid-cols-8 sm:grid-cols-16"}` }, cells.map((v, i) => /* @__PURE__ */ import_react2.default.createElement(
+      CellTile,
+      {
+        key: i,
+        index: i + 1,
+        voltage: v,
+        min: minV,
+        max: maxV,
+        count: cells.length,
+        onClick: () => setSelectedCell(i)
+      }
+    )))), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex gap-3 mb-6" }, /* @__PURE__ */ import_react2.default.createElement(SwitchIndicator, { label: "Charge", enabled: val("charging_enabled") === 1 }), /* @__PURE__ */ import_react2.default.createElement(SwitchIndicator, { label: "Discharge", enabled: val("discharging_enabled") === 1 })), history.length > 1 && /* @__PURE__ */ import_react2.default.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3" }, /* @__PURE__ */ import_react2.default.createElement(
+      Chart,
+      {
+        title: "Voltage",
+        data: history,
+        getValue: (d) => d.total_voltage,
+        unit: "V",
+        color: "#60a5fa",
+        fillColor: "rgba(96,165,250,0.08)",
+        decimals: 2
+      }
+    ), /* @__PURE__ */ import_react2.default.createElement(
+      Chart,
+      {
+        title: "Power",
+        data: history,
+        getValue: (d) => d.total_voltage * d.current,
+        unit: "W",
+        color: "#fbbf24",
+        fillColor: "rgba(251,191,36,0.08)",
+        decimals: 0
+      }
+    )));
   }
   function Metric({ label, value, unit, large, color = "text-white", sub }) {
     return /* @__PURE__ */ import_react2.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 px-3 py-2.5" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[11px] text-slate-500 mb-1" }, label), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-baseline gap-1" }, /* @__PURE__ */ import_react2.default.createElement("span", { className: `${large ? "text-2xl" : "text-lg"} font-semibold tabular-nums ${color}` }, value), /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-xs text-slate-500" }, unit)), sub && /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[11px] text-slate-500 mt-0.5" }, sub));
   }
-  function CellTile({ index, voltage, min, max, count }) {
+  function CellTile({ index, voltage, min, max, count, onClick }) {
     const isMin = count > 1 && voltage === min;
     const isMax = count > 1 && voltage === max;
     let bg = "bg-slate-800/50";
@@ -23720,7 +23754,15 @@
       text = "text-emerald-400";
       border = "border-emerald-500/30";
     }
-    return /* @__PURE__ */ import_react2.default.createElement("div", { className: `${bg} ${border} border rounded-md px-1.5 py-1.5 text-center` }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[9px] text-slate-500 leading-none mb-0.5" }, "C", index), /* @__PURE__ */ import_react2.default.createElement("div", { className: `text-[11px] font-mono font-medium leading-none ${text}` }, voltage.toFixed(3)));
+    return /* @__PURE__ */ import_react2.default.createElement(
+      "button",
+      {
+        onClick,
+        className: `${bg} ${border} border rounded-md px-1.5 py-1.5 text-center cursor-pointer hover:border-slate-600 transition-colors`
+      },
+      /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[9px] text-slate-500 leading-none mb-0.5" }, "C", index),
+      /* @__PURE__ */ import_react2.default.createElement("div", { className: `text-[11px] font-mono font-medium leading-none ${text}` }, voltage.toFixed(3))
+    );
   }
   function StatusBadge({ label, color }) {
     const colors = {
@@ -23742,22 +23784,138 @@
   function SwitchIndicator({ label, enabled }) {
     return /* @__PURE__ */ import_react2.default.createElement("div", { className: `text-xs px-3 py-1.5 rounded border ${enabled ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400" : "bg-red-500/5 border-red-500/20 text-red-400"}` }, label, ": ", enabled ? "ON" : "OFF");
   }
-  function MiniChart({ data }) {
-    if (!data.length)
+  function Chart({ title, data, getValue, unit, color, fillColor, decimals = 1 }) {
+    const values = data.map(getValue).filter((v) => v != null && isFinite(v));
+    if (values.length < 2)
       return null;
-    const voltages = data.map((d) => d.total_voltage).filter(Boolean);
-    const currents = data.map((d) => d.current).filter(Boolean);
-    if (!voltages.length)
-      return /* @__PURE__ */ import_react2.default.createElement("p", { className: "text-xs text-slate-500" }, "No chart data");
-    const vMin = Math.min(...voltages);
-    const vMax = Math.max(...voltages);
-    const vRange = vMax - vMin || 1;
-    const w = 100;
-    const h = 40;
-    const vPoints = voltages.map(
-      (v, i) => `${i / (voltages.length - 1) * w},${h - (v - vMin) / vRange * h}`
-    ).join(" ");
-    return /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("svg", { viewBox: `0 0 ${w} ${h}`, className: "w-full h-32", preserveAspectRatio: "none" }, /* @__PURE__ */ import_react2.default.createElement("polyline", { points: vPoints, fill: "none", stroke: "#60a5fa", strokeWidth: "0.5", vectorEffect: "non-scaling-stroke" })), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex justify-between text-[10px] text-slate-500 mt-1" }, /* @__PURE__ */ import_react2.default.createElement("span", null, voltages.length, " readings"), /* @__PURE__ */ import_react2.default.createElement("span", null, vMin.toFixed(1), "\u2013", vMax.toFixed(1), "V")));
+    const timestamps = data.filter((d) => getValue(d) != null && isFinite(getValue(d))).map((d) => d.timestamp);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+    const latest = values[values.length - 1];
+    const W = 300;
+    const H = 80;
+    const PAD_L = 0;
+    const PAD_R = 0;
+    const PAD_T = 4;
+    const PAD_B = 0;
+    const plotW = W - PAD_L - PAD_R;
+    const plotH = H - PAD_T - PAD_B;
+    const points = values.map((v, i) => {
+      const x = PAD_L + i / (values.length - 1) * plotW;
+      const y = PAD_T + plotH - (v - min) / range * plotH;
+      return { x, y };
+    });
+    const line = points.map((p) => `${p.x},${p.y}`).join(" ");
+    const fill = [
+      `${points[0].x},${PAD_T + plotH}`,
+      ...points.map((p) => `${p.x},${p.y}`),
+      `${points[points.length - 1].x},${PAD_T + plotH}`
+    ].join(" ");
+    const gridLines = [0, 0.5, 1].map((frac) => {
+      const y = PAD_T + plotH - frac * plotH;
+      const val = min + frac * range;
+      return { y, label: val.toFixed(decimals) };
+    });
+    const firstTs = formatTime(timestamps[0]);
+    const lastTs = formatTime(timestamps[timestamps.length - 1]);
+    return /* @__PURE__ */ import_react2.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 p-3" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-baseline justify-between mb-2" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-baseline gap-2" }, /* @__PURE__ */ import_react2.default.createElement("h3", { className: "text-xs font-medium text-slate-400" }, title), /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-lg font-semibold tabular-nums", style: { color } }, latest.toFixed(decimals)), /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-[11px] text-slate-500" }, unit)), /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-[10px] text-slate-600" }, min.toFixed(decimals), "\u2013", max.toFixed(decimals), " ", unit)), /* @__PURE__ */ import_react2.default.createElement("div", { className: "relative" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "absolute left-0 top-0 bottom-0 flex flex-col justify-between py-0.5 pointer-events-none" }, gridLines.slice().reverse().map((g, i) => /* @__PURE__ */ import_react2.default.createElement("span", { key: i, className: "text-[9px] text-slate-600 tabular-nums leading-none" }, g.label))), /* @__PURE__ */ import_react2.default.createElement("svg", { viewBox: `0 0 ${W} ${H}`, className: "w-full h-28 ml-6", preserveAspectRatio: "none" }, gridLines.map((g, i) => /* @__PURE__ */ import_react2.default.createElement(
+      "line",
+      {
+        key: i,
+        x1: PAD_L,
+        y1: g.y,
+        x2: W - PAD_R,
+        y2: g.y,
+        stroke: "#1e293b",
+        strokeWidth: "0.5",
+        vectorEffect: "non-scaling-stroke"
+      }
+    )), /* @__PURE__ */ import_react2.default.createElement("polygon", { points: fill, fill: fillColor }), /* @__PURE__ */ import_react2.default.createElement(
+      "polyline",
+      {
+        points: line,
+        fill: "none",
+        stroke: color,
+        strokeWidth: "1.5",
+        vectorEffect: "non-scaling-stroke",
+        strokeLinejoin: "round"
+      }
+    ))), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex justify-between text-[9px] text-slate-600 mt-1 ml-6" }, /* @__PURE__ */ import_react2.default.createElement("span", null, firstTs), /* @__PURE__ */ import_react2.default.createElement("span", null, values.length, " readings"), /* @__PURE__ */ import_react2.default.createElement("span", null, lastTs)));
+  }
+  function formatTime(ts) {
+    if (!ts)
+      return "";
+    const d = new Date(ts.includes("Z") || ts.includes("+") ? ts : ts + "Z");
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+  function CellDetail({ cellIndex, cells, onBack }) {
+    const [cellHistory, setCellHistory] = (0, import_react2.useState)([]);
+    const [loading, setLoading] = (0, import_react2.useState)(true);
+    const currentVoltage = cells[cellIndex] != null ? cells[cellIndex] : null;
+    const cellNum = cellIndex + 1;
+    (0, import_react2.useEffect)(() => {
+      let cancelled = false;
+      setLoading(true);
+      fetch(`/api/cells?cell=${cellIndex}&limit=200`).then((r) => r.json()).then((data) => {
+        if (!cancelled && Array.isArray(data)) {
+          setCellHistory(data);
+        }
+      }).catch(() => {
+      }).finally(() => {
+        if (!cancelled)
+          setLoading(false);
+      });
+      const interval = setInterval(() => {
+        fetch(`/api/cells?cell=${cellIndex}&limit=200`).then((r) => r.json()).then((data) => {
+          if (!cancelled && Array.isArray(data))
+            setCellHistory(data);
+        }).catch(() => {
+        });
+      }, 1e4);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }, [cellIndex]);
+    const voltages = cellHistory.map((d) => d.voltage).filter((v) => v != null);
+    const min = voltages.length ? Math.min(...voltages) : null;
+    const max = voltages.length ? Math.max(...voltages) : null;
+    const avg = voltages.length ? voltages.reduce((a, b) => a + b, 0) / voltages.length : null;
+    return /* @__PURE__ */ import_react2.default.createElement("div", { className: "mb-6" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center gap-3 mb-3" }, /* @__PURE__ */ import_react2.default.createElement(
+      "button",
+      {
+        onClick: onBack,
+        className: "text-xs text-slate-400 hover:text-white px-2 py-1 rounded border border-slate-700 hover:border-slate-500 transition-colors"
+      },
+      "\u2190 Back"
+    ), /* @__PURE__ */ import_react2.default.createElement("h2", { className: "text-sm font-medium text-white" }, "Cell ", cellNum), currentVoltage != null && /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-sm font-semibold tabular-nums text-blue-400" }, currentVoltage.toFixed(3), " V")), voltages.length > 0 && /* @__PURE__ */ import_react2.default.createElement("div", { className: "grid grid-cols-3 gap-2 mb-3" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 px-3 py-2" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[10px] text-slate-500" }, "Min"), /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-sm font-semibold tabular-nums text-red-400" }, min.toFixed(3), " V")), /* @__PURE__ */ import_react2.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 px-3 py-2" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[10px] text-slate-500" }, "Avg"), /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-sm font-semibold tabular-nums text-slate-200" }, avg.toFixed(3), " V")), /* @__PURE__ */ import_react2.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 px-3 py-2" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[10px] text-slate-500" }, "Max"), /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-sm font-semibold tabular-nums text-emerald-400" }, max.toFixed(3), " V"))), loading ? /* @__PURE__ */ import_react2.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 p-4 text-xs text-slate-500" }, "Loading cell history\u2026") : voltages.length > 1 ? /* @__PURE__ */ import_react2.default.createElement(
+      Chart,
+      {
+        title: `Cell ${cellNum} Voltage`,
+        data: cellHistory,
+        getValue: (d) => d.voltage,
+        unit: "V",
+        color: "#818cf8",
+        fillColor: "rgba(129,140,248,0.08)",
+        decimals: 3
+      }
+    ) : /* @__PURE__ */ import_react2.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 p-4 text-xs text-slate-500" }, "Not enough history data yet. Cell data is recorded after deploying the new schema."), cells.length > 1 && /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center gap-1.5 mt-3" }, /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-[10px] text-slate-500 mr-1" }, "Jump to:"), cells.map((_, i) => /* @__PURE__ */ import_react2.default.createElement(
+      "button",
+      {
+        key: i,
+        onClick: () => {
+          if (i !== cellIndex) {
+            setCellHistory([]);
+            setLoading(true);
+          }
+        },
+        className: `text-[10px] w-6 h-6 rounded ${i === cellIndex ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "bg-slate-800 text-slate-400 border border-transparent hover:border-slate-600"}`,
+        onClick: () => {
+        }
+      },
+      i + 1
+    ))));
   }
   function timeAgo(ts) {
     const d = new Date(ts.includes("Z") || ts.includes("+") ? ts : ts + "Z");
