@@ -65,21 +65,6 @@ public:
     pClient = nullptr;
   }
 };
-public:
-  void onConnect(NimBLEClient* pclient) override {
-    connectedToBms = true;
-    Serial.println("[BLE] Client connected");
-  }
-  void onDisconnect(NimBLEClient* pclient) override {
-    Serial.println("[BLE] Client disconnected");
-    connectedToBms = false;
-    pNotifyChar = nullptr;
-    pWriteChar = nullptr;
-    // Delete the stale client so a fresh one is created on next attempt
-    NimBLEDevice::deleteClient(pclient);
-    pClient = nullptr;
-  }
-};
 
 // ---------------------- Parse JK02_32S (V19) Frame ----------------------
 void parseJKFrame(const uint8_t* data, size_t length) {
