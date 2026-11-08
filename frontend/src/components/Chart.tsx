@@ -102,9 +102,7 @@ export default function Chart<T extends { timestamp?: string; total_voltage?: nu
   };
 
   return (
-    <div className={`bg-[#1b1b1f] border rounded-sm p-4 flex flex-col justify-between transition-all ${
-      hasSelection ? 'border-[#BF3C27]/50 shadow-sm ring-1 ring-[#BF3C27]/20' : 'border-white/10 hover:border-white/20'
-    }`}>
+    <div className="bg-[#1b1b1f] border border-white/10 hover:border-white/20 rounded-sm p-4 flex flex-col justify-between transition-all">
       {/* Chart Header */}
       <div className="flex flex-col gap-1.5 pb-2 mb-3 border-b border-dashed border-white/10">
         <div className="flex items-center justify-between">
@@ -113,11 +111,6 @@ export default function Chart<T extends { timestamp?: string; total_voltage?: nu
             <h3 className="font-serif text-sm text-neutral-100 font-normal">
               {title}
             </h3>
-            {hasSelection && (
-              <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#BF3C27]/20 text-[#BF3C27] font-semibold border border-[#BF3C27]/30">
-                INSPECT
-              </span>
-            )}
           </div>
 
           <div className="flex items-baseline gap-1.5">
