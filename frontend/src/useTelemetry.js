@@ -64,3 +64,4 @@ export function useTelemetry() {
 
   return { latest, history };
 }
+

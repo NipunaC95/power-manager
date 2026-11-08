@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "dev": "esbuild src/main.jsx --bundle --outfile=../public/bundle.js --watch",
+    "start": "npx serve ../public"
     "build": "node build.js"
   },
   "dependencies": {

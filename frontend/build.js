@@ -6,7 +6,8 @@ esbuild.build({
   minify: true,
   sourcemap: false,
   target: ['chrome90', 'firefox90', 'safari13'],
-  outfile: 'dist/bundle.js',
+  outfile: '../public/bundle.js',
   loader: { '.js': 'jsx', '.jsx': 'jsx' },
 }).catch(() => process.exit(1));
+
 
