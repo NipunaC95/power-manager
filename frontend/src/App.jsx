@@ -4,17 +4,14 @@ import { useTelemetry } from './useTelemetry.js';
 export default function App() {
   const { latest, history } = useTelemetry();
 
-  // Safely read a value from latest telemetry
-  const val = (key, fallback = '--') =>
+  const val = (key, fallback = null) =>
     latest && latest[key] != null ? latest[key] : fallback;
 
-  // Format numbers
   const fmt = (key, decimals = 1) => {
-    const v = val(key, null);
-    return v != null ? Number(v).toFixed(decimals) : '--';
+    const v = val(key);
+    return v != null ? Number(v).toFixed(decimals) : '—';
   };
 
-  // Parse cell_voltages (may already be an array from the API, or a JSON string)
   const getCells = () => {
     if (!latest) return [];
     let cells = latest.cell_voltages;
@@ -27,127 +24,214 @@ export default function App() {
   const cells = getCells();
   const minV = cells.length ? Math.min(...cells) : null;
   const maxV = cells.length ? Math.max(...cells) : null;
-  const cellDiff = minV != null && maxV != null ? ((maxV - minV) * 1000).toFixed(0) : '--';
+  const cellDiffMv = minV != null ? ((maxV - minV) * 1000).toFixed(0) : '—';
+  const soc = val('soc');
+  const current = val('current');
+  const isCharging = current != null && Number(current) > 0.5;
+  const isDischarging = current != null && Number(current) < -0.5;
+  const isOnline = !!latest;
 
-  // Estimated runtime
   const getRuntime = () => {
-    const cap = val('capacity_remaining', null);
-    const cur = val('current', null);
-    if (cap == null || cur == null || Number(cur) >= 0) return '--';
+    const cap = val('capacity_remaining');
+    const cur = val('current');
+    if (cap == null || cur == null || Number(cur) >= 0) return null;
     const hours = Number(cap) / Math.abs(Number(cur));
     if (hours > 24) return `${(hours / 24).toFixed(1)}d`;
     if (hours >= 1) return `${hours.toFixed(1)}h`;
     return `${(hours * 60).toFixed(0)}m`;
   };
 
-  // Status
-  const isOnline = !!latest;
   const lastUpdate = latest?.timestamp
-    ? new Date(latest.timestamp + 'Z').toLocaleString()
-    : 'Connecting to Cloudflare D1...';
+    ? timeAgo(latest.timestamp)
+    : null;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5">
+    <div className="max-w-5xl mx-auto">
+
       {/* Header */}
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800 shadow-lg backdrop-blur">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              JK-BMS Cloud Telemetry
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">507268D28101263</span>
-            </h1>
-            <p className="text-xs text-slate-400">{lastUpdate}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${
-            isOnline
-              ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800/80'
-              : 'bg-slate-800 text-slate-400 border-slate-700'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
-            {isOnline ? 'Live Stream' : 'Offline'}
-          </span>
-          <button onClick={() => window.dispatchEvent(new Event('fetchNow'))} className="px-3 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Refresh</button>
-        </div>
-      </header>
-
-      {/* Key Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard title="State of Charge" value={val('soc', '--')} unit="%" valueClass="text-emerald-400" />
-        <MetricCard title="Pack Voltage" value={fmt('total_voltage', 2)} unit="V" />
-        <MetricCard title="Current" value={fmt('current', 2)} unit="A" />
-        <MetricCard title="Active Power" value={fmt('power', 0)} unit="W" valueClass="text-amber-400" />
-      </div>
-
-      {/* Secondary Diagnostics */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 text-sm">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <div className="text-slate-400 text-xs">Cell Delta (Max − Min)</div>
-          <div className="font-bold text-rose-400 text-lg mt-0.5">{cellDiff} mV</div>
-          <div className="text-[11px] text-slate-500">
-            Min: {minV != null ? minV.toFixed(3) : '--'} | Max: {maxV != null ? maxV.toFixed(3) : '--'}
-          </div>
+          <h1 className="text-lg font-semibold text-white">BMS Monitor</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {isOnline ? `Updated ${lastUpdate}` : 'Connecting…'}
+          </p>
         </div>
-        <div>
-          <div className="text-slate-400 text-xs">MOSFET Temp</div>
-          <div className="font-bold text-slate-200 text-lg mt-0.5">{fmt('temp_mos')} °C</div>
-        </div>
-        <div>
-          <div className="text-slate-400 text-xs">Battery Temp 1</div>
-          <div className="font-bold text-slate-200 text-lg mt-0.5">{fmt('temp_battery_1')} °C</div>
-        </div>
-        <div>
-          <div className="text-slate-400 text-xs">Remaining Capacity</div>
-          <div className="font-bold text-cyan-400 text-lg mt-0.5">{fmt('capacity_remaining')} Ah</div>
-          <div className="text-[11px] text-slate-500">Estimated runtime: {getRuntime()}</div>
+        <div className="flex items-center gap-2">
+          <StatusBadge
+            label={isCharging ? 'Charging' : isDischarging ? 'Discharging' : 'Idle'}
+            color={isCharging ? 'green' : isDischarging ? 'amber' : 'slate'}
+          />
+          <ConnectionDot online={isOnline} />
         </div>
       </div>
 
-      {/* Cells Grid */}
+      {/* Primary metrics */}
+      <div className="grid grid-cols-4 gap-3 mb-3">
+        <Metric label="SOC" value={soc != null ? soc : '—'} unit="%" large
+          color={soc != null && soc < 20 ? 'text-red-400' : soc != null && soc > 80 ? 'text-emerald-400' : 'text-white'} />
+        <Metric label="Voltage" value={fmt('total_voltage', 2)} unit="V" large />
+        <Metric label="Current" value={fmt('current', 2)} unit="A" large
+          color={isCharging ? 'text-emerald-400' : isDischarging ? 'text-amber-400' : 'text-white'} />
+        <Metric label="Power" value={fmt('power', 0)} unit="W" large />
+      </div>
+
+      {/* Secondary metrics */}
+      <div className="grid grid-cols-5 gap-3 mb-6">
+        <Metric label="Cell Δ" value={cellDiffMv} unit="mV"
+          color={cellDiffMv !== '—' && Number(cellDiffMv) > 30 ? 'text-red-400' : 'text-slate-200'} />
+        <Metric label="MOS Temp" value={fmt('temp_mos')} unit="°C" />
+        <Metric label="Bat Temp 1" value={fmt('temp_battery_1')} unit="°C" />
+        <Metric label="Bat Temp 2" value={fmt('temp_battery_2')} unit="°C" />
+        <Metric label="Capacity" value={fmt('capacity_remaining', 1)} unit="Ah"
+          sub={getRuntime() ? `~${getRuntime()} left` : null} />
+      </div>
+
+      {/* Cell voltages */}
       {cells.length > 0 && (
-        <div className="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-16 gap-3 auto-rows-min">
-          {cells.map((v, idx) => {
-            let borderClass = 'border-slate-800 bg-slate-800/60';
-            let valClass = 'text-slate-200';
-            if (v === minV && cells.length > 1) { borderClass = 'border-rose-500/50 bg-rose-500/10'; valClass = 'text-rose-300 font-extrabold'; }
-            else if (v === maxV && cells.length > 1) { borderClass = 'border-emerald-500/50 bg-emerald-500/10'; valClass = 'text-emerald-300 font-extrabold'; }
-            return (
-              <div key={idx} className={`${borderClass} rounded-xl p-2.5 text-center border transition-all`}>
-                <div className="text-[10px] uppercase font-semibold text-slate-400">C{idx + 1}</div>
-                <div className={`text-xs font-mono font-bold mt-0.5 ${valClass}`}>{v.toFixed(3)}</div>
-              </div>
-            );
-          })}
+        <div className="mb-6">
+          <div className="flex items-baseline justify-between mb-2">
+            <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wide">Cell Voltages</h2>
+            <span className="text-[11px] text-slate-500">
+              {minV.toFixed(3)}V min · {maxV.toFixed(3)}V max
+            </span>
+          </div>
+          <div className={`grid gap-1.5 ${cells.length <= 8 ? 'grid-cols-8' : 'grid-cols-8 sm:grid-cols-16'}`}>
+            {cells.map((v, i) => (
+              <CellTile key={i} index={i + 1} voltage={v} min={minV} max={maxV} count={cells.length} />
+            ))}
+          </div>
         </div>
       )}
 
-      {/* History Chart */}
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h2 className="text-sm font-semibold text-white">Voltage &amp; Current History</h2>
-          <p className="text-xs text-slate-400">Logged in Cloudflare D1</p>
-        </div>
-        <div className="text-xs text-slate-400">Auto-updates every 30s</div>
+      {/* Switches */}
+      <div className="flex gap-3 mb-6">
+        <SwitchIndicator label="Charge" enabled={val('charging_enabled') === 1} />
+        <SwitchIndicator label="Discharge" enabled={val('discharging_enabled') === 1} />
       </div>
-      <div className="h-64 sm:h-72"><canvas id="historyChart"></canvas></div>
+
+      {/* History chart placeholder */}
+      {history.length > 0 && (
+        <div>
+          <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">History</h2>
+          <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+            <MiniChart data={history} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function MetricCard({ title, value, unit, valueClass = '' }) {
+
+/* ── Components ──────────────────────────────────────────── */
+
+function Metric({ label, value, unit, large, color = 'text-white', sub }) {
   return (
-    <div className="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-      <div className="flex justify-between items-center text-slate-400 text-xs font-medium">
-        <span>{title}</span>
+    <div className="bg-slate-900 rounded-lg border border-slate-800 px-3 py-2.5">
+      <div className="text-[11px] text-slate-500 mb-1">{label}</div>
+      <div className="flex items-baseline gap-1">
+        <span className={`${large ? 'text-2xl' : 'text-lg'} font-semibold tabular-nums ${color}`}>{value}</span>
+        <span className="text-xs text-slate-500">{unit}</span>
       </div>
-      <div className="my-2">
-        <span className={`text-4xl font-extrabold tracking-tight ${valueClass}`}>{value}</span>
-        <span className="text-sm font-semibold text-slate-400"> {unit}</span>
+      {sub && <div className="text-[11px] text-slate-500 mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+function CellTile({ index, voltage, min, max, count }) {
+  const isMin = count > 1 && voltage === min;
+  const isMax = count > 1 && voltage === max;
+
+  let bg = 'bg-slate-800/50';
+  let text = 'text-slate-300';
+  let border = 'border-transparent';
+
+  if (isMin) { bg = 'bg-red-950/40'; text = 'text-red-400'; border = 'border-red-500/30'; }
+  if (isMax) { bg = 'bg-emerald-950/40'; text = 'text-emerald-400'; border = 'border-emerald-500/30'; }
+
+  return (
+    <div className={`${bg} ${border} border rounded-md px-1.5 py-1.5 text-center`}>
+      <div className="text-[9px] text-slate-500 leading-none mb-0.5">C{index}</div>
+      <div className={`text-[11px] font-mono font-medium leading-none ${text}`}>
+        {voltage.toFixed(3)}
       </div>
     </div>
   );
+}
+
+function StatusBadge({ label, color }) {
+  const colors = {
+    green: 'bg-emerald-500/10 text-emerald-400',
+    amber: 'bg-amber-500/10 text-amber-400',
+    slate: 'bg-slate-800 text-slate-400',
+  };
+  return (
+    <span className={`text-[11px] font-medium px-2 py-0.5 rounded ${colors[color] || colors.slate}`}>
+      {label}
+    </span>
+  );
+}
+
+function ConnectionDot({ online }) {
+  return (
+    <span className={`w-2 h-2 rounded-full ${online ? 'bg-emerald-400' : 'bg-slate-600'}`}
+      title={online ? 'Connected' : 'Offline'} />
+  );
+}
+
+function SwitchIndicator({ label, enabled }) {
+  return (
+    <div className={`text-xs px-3 py-1.5 rounded border ${
+      enabled
+        ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
+        : 'bg-red-500/5 border-red-500/20 text-red-400'
+    }`}>
+      {label}: {enabled ? 'ON' : 'OFF'}
+    </div>
+  );
+}
+
+function MiniChart({ data }) {
+  if (!data.length) return null;
+
+  const voltages = data.map(d => d.total_voltage).filter(Boolean);
+  const currents = data.map(d => d.current).filter(Boolean);
+
+  if (!voltages.length) return <p className="text-xs text-slate-500">No chart data</p>;
+
+  const vMin = Math.min(...voltages);
+  const vMax = Math.max(...voltages);
+  const vRange = vMax - vMin || 1;
+
+  const w = 100;
+  const h = 40;
+
+  const vPoints = voltages.map((v, i) =>
+    `${(i / (voltages.length - 1)) * w},${h - ((v - vMin) / vRange) * h}`
+  ).join(' ');
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-32" preserveAspectRatio="none">
+        <polyline points={vPoints} fill="none" stroke="#60a5fa" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+        <span>{voltages.length} readings</span>
+        <span>{vMin.toFixed(1)}–{vMax.toFixed(1)}V</span>
+      </div>
+    </div>
+  );
+}
+
+
+/* ── Helpers ─────────────────────────────────────────────── */
+
+function timeAgo(ts) {
+  const d = new Date(ts.includes('Z') || ts.includes('+') ? ts : ts + 'Z');
+  const diff = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (diff < 5) return 'just now';
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return d.toLocaleDateString();
 }

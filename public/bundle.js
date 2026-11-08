@@ -23619,10 +23619,10 @@
   // src/App.jsx
   function App() {
     const { latest, history } = useTelemetry();
-    const val = (key, fallback = "--") => latest && latest[key] != null ? latest[key] : fallback;
+    const val = (key, fallback = null) => latest && latest[key] != null ? latest[key] : fallback;
     const fmt = (key, decimals = 1) => {
-      const v = val(key, null);
-      return v != null ? Number(v).toFixed(decimals) : "--";
+      const v = val(key);
+      return v != null ? Number(v).toFixed(decimals) : "\u2014";
     };
     const getCells = () => {
       if (!latest)
@@ -23640,12 +23640,17 @@
     const cells = getCells();
     const minV = cells.length ? Math.min(...cells) : null;
     const maxV = cells.length ? Math.max(...cells) : null;
-    const cellDiff = minV != null && maxV != null ? ((maxV - minV) * 1e3).toFixed(0) : "--";
+    const cellDiffMv = minV != null ? ((maxV - minV) * 1e3).toFixed(0) : "\u2014";
+    const soc = val("soc");
+    const current = val("current");
+    const isCharging = current != null && Number(current) > 0.5;
+    const isDischarging = current != null && Number(current) < -0.5;
+    const isOnline = !!latest;
     const getRuntime = () => {
-      const cap = val("capacity_remaining", null);
-      const cur = val("current", null);
+      const cap = val("capacity_remaining");
+      const cur = val("current");
       if (cap == null || cur == null || Number(cur) >= 0)
-        return "--";
+        return null;
       const hours = Number(cap) / Math.abs(Number(cur));
       if (hours > 24)
         return `${(hours / 24).toFixed(1)}d`;
@@ -23653,23 +23658,119 @@
         return `${hours.toFixed(1)}h`;
       return `${(hours * 60).toFixed(0)}m`;
     };
-    const isOnline = !!latest;
-    const lastUpdate = latest?.timestamp ? (/* @__PURE__ */ new Date(latest.timestamp + "Z")).toLocaleString() : "Connecting to Cloudflare D1...";
-    return /* @__PURE__ */ import_react2.default.createElement("div", { className: "max-w-6xl mx-auto space-y-5" }, /* @__PURE__ */ import_react2.default.createElement("header", { className: "flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800 shadow-lg backdrop-blur" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400" }, /* @__PURE__ */ import_react2.default.createElement("svg", { className: "w-6 h-6", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" }, /* @__PURE__ */ import_react2.default.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "2", d: "M13 10V3L4 14h7v7l9-11h-7z" }))), /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("h1", { className: "text-xl font-bold tracking-tight text-white flex items-center gap-2" }, "JK-BMS Cloud Telemetry", /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" }, "507268D28101263")), /* @__PURE__ */ import_react2.default.createElement("p", { className: "text-xs text-slate-400" }, lastUpdate))), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end" }, /* @__PURE__ */ import_react2.default.createElement("span", { className: `inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${isOnline ? "bg-emerald-950/80 text-emerald-400 border-emerald-800/80" : "bg-slate-800 text-slate-400 border-slate-700"}` }, /* @__PURE__ */ import_react2.default.createElement("span", { className: `w-2 h-2 rounded-full ${isOnline ? "bg-emerald-400 animate-pulse" : "bg-slate-500"}` }), isOnline ? "Live Stream" : "Offline"), /* @__PURE__ */ import_react2.default.createElement("button", { onClick: () => window.dispatchEvent(new Event("fetchNow")), className: "px-3 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition" }, "Refresh"))), /* @__PURE__ */ import_react2.default.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4" }, /* @__PURE__ */ import_react2.default.createElement(MetricCard, { title: "State of Charge", value: val("soc", "--"), unit: "%", valueClass: "text-emerald-400" }), /* @__PURE__ */ import_react2.default.createElement(MetricCard, { title: "Pack Voltage", value: fmt("total_voltage", 2), unit: "V" }), /* @__PURE__ */ import_react2.default.createElement(MetricCard, { title: "Current", value: fmt("current", 2), unit: "A" }), /* @__PURE__ */ import_react2.default.createElement(MetricCard, { title: "Active Power", value: fmt("power", 0), unit: "W", valueClass: "text-amber-400" })), /* @__PURE__ */ import_react2.default.createElement("div", { className: "grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 text-sm" }, /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-slate-400 text-xs" }, "Cell Delta (Max \u2212 Min)"), /* @__PURE__ */ import_react2.default.createElement("div", { className: "font-bold text-rose-400 text-lg mt-0.5" }, cellDiff, " mV"), /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[11px] text-slate-500" }, "Min: ", minV != null ? minV.toFixed(3) : "--", " | Max: ", maxV != null ? maxV.toFixed(3) : "--")), /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-slate-400 text-xs" }, "MOSFET Temp"), /* @__PURE__ */ import_react2.default.createElement("div", { className: "font-bold text-slate-200 text-lg mt-0.5" }, fmt("temp_mos"), " \xB0C")), /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-slate-400 text-xs" }, "Battery Temp 1"), /* @__PURE__ */ import_react2.default.createElement("div", { className: "font-bold text-slate-200 text-lg mt-0.5" }, fmt("temp_battery_1"), " \xB0C")), /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-slate-400 text-xs" }, "Remaining Capacity"), /* @__PURE__ */ import_react2.default.createElement("div", { className: "font-bold text-cyan-400 text-lg mt-0.5" }, fmt("capacity_remaining"), " Ah"), /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[11px] text-slate-500" }, "Estimated runtime: ", getRuntime()))), cells.length > 0 && /* @__PURE__ */ import_react2.default.createElement("div", { className: "grid grid-cols-4 sm:grid-cols-8 md:grid-cols-16 gap-3 auto-rows-min" }, cells.map((v, idx) => {
-      let borderClass = "border-slate-800 bg-slate-800/60";
-      let valClass = "text-slate-200";
-      if (v === minV && cells.length > 1) {
-        borderClass = "border-rose-500/50 bg-rose-500/10";
-        valClass = "text-rose-300 font-extrabold";
-      } else if (v === maxV && cells.length > 1) {
-        borderClass = "border-emerald-500/50 bg-emerald-500/10";
-        valClass = "text-emerald-300 font-extrabold";
+    const lastUpdate = latest?.timestamp ? timeAgo(latest.timestamp) : null;
+    return /* @__PURE__ */ import_react2.default.createElement("div", { className: "max-w-5xl mx-auto" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center justify-between mb-6" }, /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("h1", { className: "text-lg font-semibold text-white" }, "BMS Monitor"), /* @__PURE__ */ import_react2.default.createElement("p", { className: "text-xs text-slate-500 mt-0.5" }, isOnline ? `Updated ${lastUpdate}` : "Connecting\u2026")), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ import_react2.default.createElement(
+      StatusBadge,
+      {
+        label: isCharging ? "Charging" : isDischarging ? "Discharging" : "Idle",
+        color: isCharging ? "green" : isDischarging ? "amber" : "slate"
       }
-      return /* @__PURE__ */ import_react2.default.createElement("div", { key: idx, className: `${borderClass} rounded-xl p-2.5 text-center border transition-all` }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[10px] uppercase font-semibold text-slate-400" }, "C", idx + 1), /* @__PURE__ */ import_react2.default.createElement("div", { className: `text-xs font-mono font-bold mt-0.5 ${valClass}` }, v.toFixed(3)));
-    })), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex justify-between items-center mb-4" }, /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("h2", { className: "text-sm font-semibold text-white" }, "Voltage & Current History"), /* @__PURE__ */ import_react2.default.createElement("p", { className: "text-xs text-slate-400" }, "Logged in Cloudflare D1")), /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-xs text-slate-400" }, "Auto-updates every 30s")), /* @__PURE__ */ import_react2.default.createElement("div", { className: "h-64 sm:h-72" }, /* @__PURE__ */ import_react2.default.createElement("canvas", { id: "historyChart" })));
+    ), /* @__PURE__ */ import_react2.default.createElement(ConnectionDot, { online: isOnline }))), /* @__PURE__ */ import_react2.default.createElement("div", { className: "grid grid-cols-4 gap-3 mb-3" }, /* @__PURE__ */ import_react2.default.createElement(
+      Metric,
+      {
+        label: "SOC",
+        value: soc != null ? soc : "\u2014",
+        unit: "%",
+        large: true,
+        color: soc != null && soc < 20 ? "text-red-400" : soc != null && soc > 80 ? "text-emerald-400" : "text-white"
+      }
+    ), /* @__PURE__ */ import_react2.default.createElement(Metric, { label: "Voltage", value: fmt("total_voltage", 2), unit: "V", large: true }), /* @__PURE__ */ import_react2.default.createElement(
+      Metric,
+      {
+        label: "Current",
+        value: fmt("current", 2),
+        unit: "A",
+        large: true,
+        color: isCharging ? "text-emerald-400" : isDischarging ? "text-amber-400" : "text-white"
+      }
+    ), /* @__PURE__ */ import_react2.default.createElement(Metric, { label: "Power", value: fmt("power", 0), unit: "W", large: true })), /* @__PURE__ */ import_react2.default.createElement("div", { className: "grid grid-cols-5 gap-3 mb-6" }, /* @__PURE__ */ import_react2.default.createElement(
+      Metric,
+      {
+        label: "Cell \u0394",
+        value: cellDiffMv,
+        unit: "mV",
+        color: cellDiffMv !== "\u2014" && Number(cellDiffMv) > 30 ? "text-red-400" : "text-slate-200"
+      }
+    ), /* @__PURE__ */ import_react2.default.createElement(Metric, { label: "MOS Temp", value: fmt("temp_mos"), unit: "\xB0C" }), /* @__PURE__ */ import_react2.default.createElement(Metric, { label: "Bat Temp 1", value: fmt("temp_battery_1"), unit: "\xB0C" }), /* @__PURE__ */ import_react2.default.createElement(Metric, { label: "Bat Temp 2", value: fmt("temp_battery_2"), unit: "\xB0C" }), /* @__PURE__ */ import_react2.default.createElement(
+      Metric,
+      {
+        label: "Capacity",
+        value: fmt("capacity_remaining", 1),
+        unit: "Ah",
+        sub: getRuntime() ? `~${getRuntime()} left` : null
+      }
+    )), cells.length > 0 && /* @__PURE__ */ import_react2.default.createElement("div", { className: "mb-6" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-baseline justify-between mb-2" }, /* @__PURE__ */ import_react2.default.createElement("h2", { className: "text-xs font-medium text-slate-400 uppercase tracking-wide" }, "Cell Voltages"), /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-[11px] text-slate-500" }, minV.toFixed(3), "V min \xB7 ", maxV.toFixed(3), "V max")), /* @__PURE__ */ import_react2.default.createElement("div", { className: `grid gap-1.5 ${cells.length <= 8 ? "grid-cols-8" : "grid-cols-8 sm:grid-cols-16"}` }, cells.map((v, i) => /* @__PURE__ */ import_react2.default.createElement(CellTile, { key: i, index: i + 1, voltage: v, min: minV, max: maxV, count: cells.length })))), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex gap-3 mb-6" }, /* @__PURE__ */ import_react2.default.createElement(SwitchIndicator, { label: "Charge", enabled: val("charging_enabled") === 1 }), /* @__PURE__ */ import_react2.default.createElement(SwitchIndicator, { label: "Discharge", enabled: val("discharging_enabled") === 1 })), history.length > 0 && /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("h2", { className: "text-xs font-medium text-slate-400 uppercase tracking-wide mb-2" }, "History"), /* @__PURE__ */ import_react2.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 p-4" }, /* @__PURE__ */ import_react2.default.createElement(MiniChart, { data: history }))));
   }
-  function MetricCard({ title, value, unit, valueClass = "" }) {
-    return /* @__PURE__ */ import_react2.default.createElement("div", { className: "bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex justify-between items-center text-slate-400 text-xs font-medium" }, /* @__PURE__ */ import_react2.default.createElement("span", null, title)), /* @__PURE__ */ import_react2.default.createElement("div", { className: "my-2" }, /* @__PURE__ */ import_react2.default.createElement("span", { className: `text-4xl font-extrabold tracking-tight ${valueClass}` }, value), /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-sm font-semibold text-slate-400" }, " ", unit)));
+  function Metric({ label, value, unit, large, color = "text-white", sub }) {
+    return /* @__PURE__ */ import_react2.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 px-3 py-2.5" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[11px] text-slate-500 mb-1" }, label), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-baseline gap-1" }, /* @__PURE__ */ import_react2.default.createElement("span", { className: `${large ? "text-2xl" : "text-lg"} font-semibold tabular-nums ${color}` }, value), /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-xs text-slate-500" }, unit)), sub && /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[11px] text-slate-500 mt-0.5" }, sub));
+  }
+  function CellTile({ index, voltage, min, max, count }) {
+    const isMin = count > 1 && voltage === min;
+    const isMax = count > 1 && voltage === max;
+    let bg = "bg-slate-800/50";
+    let text = "text-slate-300";
+    let border = "border-transparent";
+    if (isMin) {
+      bg = "bg-red-950/40";
+      text = "text-red-400";
+      border = "border-red-500/30";
+    }
+    if (isMax) {
+      bg = "bg-emerald-950/40";
+      text = "text-emerald-400";
+      border = "border-emerald-500/30";
+    }
+    return /* @__PURE__ */ import_react2.default.createElement("div", { className: `${bg} ${border} border rounded-md px-1.5 py-1.5 text-center` }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "text-[9px] text-slate-500 leading-none mb-0.5" }, "C", index), /* @__PURE__ */ import_react2.default.createElement("div", { className: `text-[11px] font-mono font-medium leading-none ${text}` }, voltage.toFixed(3)));
+  }
+  function StatusBadge({ label, color }) {
+    const colors = {
+      green: "bg-emerald-500/10 text-emerald-400",
+      amber: "bg-amber-500/10 text-amber-400",
+      slate: "bg-slate-800 text-slate-400"
+    };
+    return /* @__PURE__ */ import_react2.default.createElement("span", { className: `text-[11px] font-medium px-2 py-0.5 rounded ${colors[color] || colors.slate}` }, label);
+  }
+  function ConnectionDot({ online }) {
+    return /* @__PURE__ */ import_react2.default.createElement(
+      "span",
+      {
+        className: `w-2 h-2 rounded-full ${online ? "bg-emerald-400" : "bg-slate-600"}`,
+        title: online ? "Connected" : "Offline"
+      }
+    );
+  }
+  function SwitchIndicator({ label, enabled }) {
+    return /* @__PURE__ */ import_react2.default.createElement("div", { className: `text-xs px-3 py-1.5 rounded border ${enabled ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400" : "bg-red-500/5 border-red-500/20 text-red-400"}` }, label, ": ", enabled ? "ON" : "OFF");
+  }
+  function MiniChart({ data }) {
+    if (!data.length)
+      return null;
+    const voltages = data.map((d) => d.total_voltage).filter(Boolean);
+    const currents = data.map((d) => d.current).filter(Boolean);
+    if (!voltages.length)
+      return /* @__PURE__ */ import_react2.default.createElement("p", { className: "text-xs text-slate-500" }, "No chart data");
+    const vMin = Math.min(...voltages);
+    const vMax = Math.max(...voltages);
+    const vRange = vMax - vMin || 1;
+    const w = 100;
+    const h = 40;
+    const vPoints = voltages.map(
+      (v, i) => `${i / (voltages.length - 1) * w},${h - (v - vMin) / vRange * h}`
+    ).join(" ");
+    return /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("svg", { viewBox: `0 0 ${w} ${h}`, className: "w-full h-32", preserveAspectRatio: "none" }, /* @__PURE__ */ import_react2.default.createElement("polyline", { points: vPoints, fill: "none", stroke: "#60a5fa", strokeWidth: "0.5", vectorEffect: "non-scaling-stroke" })), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex justify-between text-[10px] text-slate-500 mt-1" }, /* @__PURE__ */ import_react2.default.createElement("span", null, voltages.length, " readings"), /* @__PURE__ */ import_react2.default.createElement("span", null, vMin.toFixed(1), "\u2013", vMax.toFixed(1), "V")));
+  }
+  function timeAgo(ts) {
+    const d = new Date(ts.includes("Z") || ts.includes("+") ? ts : ts + "Z");
+    const diff = Math.floor((Date.now() - d.getTime()) / 1e3);
+    if (diff < 5)
+      return "just now";
+    if (diff < 60)
+      return `${diff}s ago`;
+    if (diff < 3600)
+      return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400)
+      return `${Math.floor(diff / 3600)}h ago`;
+    return d.toLocaleDateString();
   }
 
   // src/main.jsx

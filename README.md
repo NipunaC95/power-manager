@@ -6,6 +6,15 @@ This project allows an **ESP32** to wirelessly read real-time telemetry from you
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    ESP32[ESP32\nBLE & WiFi] -->|Telemetry JSON| Worker[Cloudflare Worker & D1]
+    Worker -->|Serve Dashboard| Pages[Cloudflare Pages]
+    style ESP32 fill:#f9f,stroke:#333,stroke-width:2px
+    style Worker fill:#bbf,stroke:#333,stroke-width:2px
+    style Pages fill:#bfb,stroke:#333,stroke-width:2px
+```
+
 1. **ESP32**: Connects to the JK-BMS over BLE (Service `0xFFE0`), decodes the JK binary frame, and sends JSON payloads every 15s over HTTPS.
 2. **Cloudflare Worker & D1**: Serverless API endpoint (`/api/telemetry`) that writes records to a free serverless D1 SQLite database.
 3. **Cloudflare Pages / Dashboard**: Serves a sleek dark-mode dashboard showing pack voltage, current, power, SoC, temperatures, individual cell voltages, and historical line charts.
