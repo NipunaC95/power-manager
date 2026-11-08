@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { formatTime } from '../utils/format.js';
 
 export default function Chart({
@@ -9,10 +9,15 @@ export default function Chart({
   color = '#3b82f6',
   fillColor = 'rgba(59, 130, 246, 0.06)',
   decimals = 1,
-  selectedIndex = null,
-  onSelectIndex,
-  powerValue,
+  selectedIndex: controlledIndex,
+  onSelectIndex: setControlledIndex,
+  powerValue: explicitPowerValue,
 }) {
+  // Independent selection state per chart when not externally controlled
+  const [internalIndex, setInternalIndex] = useState(null);
+  const selectedIndex = controlledIndex !== undefined ? controlledIndex : internalIndex;
+  const onSelectIndex = setControlledIndex || setInternalIndex;
+
   const svgRef = useRef(null);
 
   const values = data.map(getValue).filter((v) => v != null && isFinite(v));
@@ -65,19 +70,33 @@ export default function Chart({
   const activePoint = hasSelection ? points[selectedIndex] : null;
   const activeTimestamp = hasSelection ? timestamps[selectedIndex] : null;
 
+  // Compute power for the selected snapshot independently
+  const activeRecord = hasSelection ? data[selectedIndex] : null;
+  const computedPower =
+    activeRecord && activeRecord.total_voltage != null && activeRecord.current != null
+      ? activeRecord.total_voltage * activeRecord.current
+      : null;
+  const activePower = explicitPowerValue !== undefined ? explicitPowerValue : computedPower;
+
   const handlePointerInteraction = (e) => {
-    if (!onSelectIndex || !svgRef.current) return;
+    if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const x = clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, x / rect.width));
     const idx = Math.round(ratio * (values.length - 1));
-    onSelectIndex(idx);
+
+    // Toggle off if tapping already inspected point
+    if (selectedIndex === idx) {
+      onSelectIndex(null);
+    } else {
+      onSelectIndex(idx);
+    }
   };
 
   return (
     <div className={`bg-[#1b1b1f] border rounded-sm p-4 flex flex-col justify-between transition-all ${
-      hasSelection ? 'border-[#BF3C27]/40 shadow-sm' : 'border-white/10 hover:border-white/20'
+      hasSelection ? 'border-[#BF3C27]/50 shadow-sm ring-1 ring-[#BF3C27]/20' : 'border-white/10 hover:border-white/20'
     }`}>
       {/* Chart Header */}
       <div className="flex flex-col gap-2 pb-2 mb-3 border-b border-dashed border-white/10">
@@ -122,13 +141,13 @@ export default function Chart({
             <div className="flex items-center gap-1.5">
               <span className="text-neutral-500 text-[10px] uppercase tracking-wider">Time:</span>
               <span className="text-white font-medium">{formatTime(activeTimestamp)}</span>
-              <span className="text-neutral-600">({activeTimestamp})</span>
+              <span className="text-neutral-600 text-[10px]">({activeTimestamp})</span>
             </div>
-            {powerValue != null && (
+            {activePower != null && (
               <div className="flex items-center gap-1.5">
                 <span className="text-neutral-500 text-[10px] uppercase tracking-wider">Power:</span>
                 <span className="text-[#e5933d] font-semibold tabular-nums">
-                  {Number(powerValue).toFixed(0)} W
+                  {Number(activePower).toFixed(0)} W
                 </span>
               </div>
             )}
@@ -136,7 +155,7 @@ export default function Chart({
         ) : (
           <div className="flex items-center justify-between font-mono text-[10px] text-neutral-500 px-0.5">
             <span>Range: {min.toFixed(decimals)}–{max.toFixed(decimals)} {unit}</span>
-            <span className="text-neutral-600">Tap curve to inspect snapshot</span>
+            <span className="text-neutral-600">Tap curve to inspect</span>
           </div>
         )}
       </div>
