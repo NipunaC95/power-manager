@@ -23792,18 +23792,18 @@
 
   // src/components/CellDetail.jsx
   var import_react7 = __toESM(require_react());
-  function CellDetail({ cellIndex, cells, onCellChange, onBack }) {
-    const [history, setHistory] = (0, import_react7.useState)([]);
+  function CellDetail({ cellIndex, cells, history, onCellChange, onBack }) {
+    const [apiHistory, setApiHistory] = (0, import_react7.useState)([]);
     const [loading, setLoading] = (0, import_react7.useState)(true);
     const voltage = cells[cellIndex] != null ? cells[cellIndex] : null;
     const num = cellIndex + 1;
     (0, import_react7.useEffect)(() => {
       let cancelled = false;
       setLoading(true);
-      setHistory([]);
-      const load = () => fetch(`/api/cells?cell=${cellIndex}&limit=200`).then((r) => r.json()).then((data) => {
+      setApiHistory([]);
+      const load = () => fetch(`/api/cells?cell=${cellIndex}&limit=200`).then((r) => r.ok ? r.json() : []).then((data) => {
         if (!cancelled && Array.isArray(data))
-          setHistory(data);
+          setApiHistory(data);
       }).catch(() => {
       }).finally(() => {
         if (!cancelled)
@@ -23816,7 +23816,13 @@
         clearInterval(interval);
       };
     }, [cellIndex]);
-    const voltages = history.map((d) => d.voltage).filter((v) => v != null);
+    const historyData = apiHistory.length > 1 ? apiHistory : (history || []).map((row) => {
+      const rowCells = parseCells(row);
+      if (rowCells[cellIndex] == null)
+        return null;
+      return { voltage: rowCells[cellIndex], timestamp: row.timestamp };
+    }).filter(Boolean);
+    const voltages = historyData.map((d) => d.voltage).filter((v) => v != null);
     const min = voltages.length ? Math.min(...voltages) : null;
     const max = voltages.length ? Math.max(...voltages) : null;
     const avg = voltages.length ? voltages.reduce((a, b) => a + b, 0) / voltages.length : null;
@@ -23827,18 +23833,18 @@
         className: "text-xs text-slate-400 hover:text-white px-2 py-1 rounded border border-slate-700 hover:border-slate-500 transition-colors"
       },
       "\u2190 Back"
-    ), /* @__PURE__ */ import_react7.default.createElement("h2", { className: "text-sm font-medium text-white" }, "Cell ", num), voltage != null && /* @__PURE__ */ import_react7.default.createElement("span", { className: "text-sm font-semibold tabular-nums text-blue-400" }, voltage.toFixed(3), " V")), voltages.length > 0 && /* @__PURE__ */ import_react7.default.createElement("div", { className: "grid grid-cols-3 gap-2 mb-3" }, /* @__PURE__ */ import_react7.default.createElement(Metric, { label: "Min", value: min.toFixed(3), unit: "V", color: "text-red-400" }), /* @__PURE__ */ import_react7.default.createElement(Metric, { label: "Avg", value: avg.toFixed(3), unit: "V" }), /* @__PURE__ */ import_react7.default.createElement(Metric, { label: "Max", value: max.toFixed(3), unit: "V", color: "text-emerald-400" })), loading ? /* @__PURE__ */ import_react7.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 p-4 text-xs text-slate-500" }, "Loading cell history\u2026") : voltages.length > 1 ? /* @__PURE__ */ import_react7.default.createElement(
+    ), /* @__PURE__ */ import_react7.default.createElement("h2", { className: "text-sm font-medium text-white" }, "Cell ", num), voltage != null && /* @__PURE__ */ import_react7.default.createElement("span", { className: "text-sm font-semibold tabular-nums text-blue-400" }, voltage.toFixed(3), " V")), voltages.length > 0 && /* @__PURE__ */ import_react7.default.createElement("div", { className: "grid grid-cols-3 gap-2 mb-3" }, /* @__PURE__ */ import_react7.default.createElement(Metric, { label: "Min", value: min.toFixed(3), unit: "V", color: "text-red-400" }), /* @__PURE__ */ import_react7.default.createElement(Metric, { label: "Avg", value: avg.toFixed(3), unit: "V" }), /* @__PURE__ */ import_react7.default.createElement(Metric, { label: "Max", value: max.toFixed(3), unit: "V", color: "text-emerald-400" })), loading && apiHistory.length === 0 && historyData.length < 2 ? /* @__PURE__ */ import_react7.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 p-4 text-xs text-slate-500" }, "Loading cell history\u2026") : historyData.length > 1 ? /* @__PURE__ */ import_react7.default.createElement(
       Chart,
       {
         title: `Cell ${num} Voltage`,
-        data: history,
+        data: historyData,
         getValue: (d) => d.voltage,
         unit: "V",
         color: "#818cf8",
         fillColor: "rgba(129,140,248,0.08)",
         decimals: 3
       }
-    ) : /* @__PURE__ */ import_react7.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 p-4 text-xs text-slate-500" }, "Not enough history yet. Data recorded after deploying the new schema."), cells.length > 1 && /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex items-center gap-1.5 mt-3" }, /* @__PURE__ */ import_react7.default.createElement("span", { className: "text-[10px] text-slate-500 mr-1" }, "Cell:"), cells.map((_, i) => /* @__PURE__ */ import_react7.default.createElement(
+    ) : /* @__PURE__ */ import_react7.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 p-4 text-xs text-slate-500" }, "Not enough history data yet."), cells.length > 1 && /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex items-center gap-1.5 mt-3" }, /* @__PURE__ */ import_react7.default.createElement("span", { className: "text-[10px] text-slate-500 mr-1" }, "Cell:"), cells.map((_, i) => /* @__PURE__ */ import_react7.default.createElement(
       "button",
       {
         key: i,

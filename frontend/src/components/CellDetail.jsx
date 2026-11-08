@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import Chart from './Chart.jsx';
 import Metric from './Metric.jsx';
+import { parseCells } from '../utils/format.js';
 
-export default function CellDetail({ cellIndex, cells, onCellChange, onBack }) {
-  const [history, setHistory] = useState([]);
+export default function CellDetail({ cellIndex, cells, history, onCellChange, onBack }) {
+  const [apiHistory, setApiHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const voltage = cells[cellIndex] != null ? cells[cellIndex] : null;
   const num = cellIndex + 1;
 
+  // Try fetching from /api/cells (works after deploying new schema)
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setHistory([]);
+    setApiHistory([]);
 
     const load = () =>
       fetch(`/api/cells?cell=${cellIndex}&limit=200`)
-        .then((r) => r.json())
-        .then((data) => { if (!cancelled && Array.isArray(data)) setHistory(data); })
+        .then((r) => r.ok ? r.json() : [])
+        .then((data) => { if (!cancelled && Array.isArray(data)) setApiHistory(data); })
         .catch(() => {})
         .finally(() => { if (!cancelled) setLoading(false); });
 
@@ -26,7 +28,18 @@ export default function CellDetail({ cellIndex, cells, onCellChange, onBack }) {
     return () => { cancelled = true; clearInterval(interval); };
   }, [cellIndex]);
 
-  const voltages = history.map((d) => d.voltage).filter((v) => v != null);
+  // Fallback: extract this cell's voltage from the main pack history
+  const historyData = apiHistory.length > 1
+    ? apiHistory
+    : (history || [])
+        .map((row) => {
+          const rowCells = parseCells(row);
+          if (rowCells[cellIndex] == null) return null;
+          return { voltage: rowCells[cellIndex], timestamp: row.timestamp };
+        })
+        .filter(Boolean);
+
+  const voltages = historyData.map((d) => d.voltage).filter((v) => v != null);
   const min = voltages.length ? Math.min(...voltages) : null;
   const max = voltages.length ? Math.max(...voltages) : null;
   const avg = voltages.length ? voltages.reduce((a, b) => a + b, 0) / voltages.length : null;
@@ -55,14 +68,14 @@ export default function CellDetail({ cellIndex, cells, onCellChange, onBack }) {
       )}
 
       {/* Chart */}
-      {loading ? (
+      {loading && apiHistory.length === 0 && historyData.length < 2 ? (
         <div className="bg-slate-900 rounded-lg border border-slate-800 p-4 text-xs text-slate-500">
           Loading cell history…
         </div>
-      ) : voltages.length > 1 ? (
+      ) : historyData.length > 1 ? (
         <Chart
           title={`Cell ${num} Voltage`}
-          data={history}
+          data={historyData}
           getValue={(d) => d.voltage}
           unit="V"
           color="#818cf8"
@@ -71,7 +84,7 @@ export default function CellDetail({ cellIndex, cells, onCellChange, onBack }) {
         />
       ) : (
         <div className="bg-slate-900 rounded-lg border border-slate-800 p-4 text-xs text-slate-500">
-          Not enough history yet. Data recorded after deploying the new schema.
+          Not enough history data yet.
         </div>
       )}
 
@@ -94,4 +107,3 @@ export default function CellDetail({ cellIndex, cells, onCellChange, onBack }) {
     </div>
   );
 }
-
