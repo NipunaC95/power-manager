@@ -1,0 +1,17 @@
+name = "jkbms-cloud"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# Cloudflare D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "jkbms-db"
+database_id = "5d7cd553-9808-4cf5-9532-5c55191aa531"
+
+# Static assets for Cloudflare Pages / Workers Sites
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[vars]
+API_KEY = "5fedefec-82d6-4d92-b316-4d92c8704426"

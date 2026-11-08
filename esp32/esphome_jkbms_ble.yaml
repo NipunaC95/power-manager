@@ -1,0 +1,83 @@
+# Minimal ESPHome configuration for ESP32 + JK-BMS (BLE) -> Cloudflare HTTP POST
+esphome:
+  name: jkbms-gateway
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+external_components:
+  - source: github://syssi/esphome-jk-bms@main
+
+wifi:
+  ssid: "SLT-Fiber-2.4G-9240"
+  password: "9d80e972e!"
+
+esp32_ble_tracker:
+  scan_parameters:
+    active: true
+
+ble_client:
+  - mac_address: "AA:BB:CC:DD:EE:FF" # Or let it discover automatically
+    id: jk_bms_ble
+
+http_request:
+  verify_ssl: true
+
+# JK-BMS BLE Component configured for V19H (JK02_32S)
+jk_bms_ble:
+  - ble_client_id: jk_bms_ble
+    protocol_version: JK02_32S
+    throttle: 10s
+
+sensor:
+  - platform: jk_bms_ble
+    total_voltage:
+      id: bms_tot_v
+      name: "Total Voltage"
+    current:
+      id: bms_cur
+      name: "Current"
+    power:
+      id: bms_pwr
+      name: "Power"
+    battery_level:
+      id: bms_soc
+      name: "State of Charge"
+    min_cell_voltage:
+      id: bms_min_v
+      name: "Min Cell Voltage"
+    max_cell_voltage:
+      id: bms_max_v
+      name: "Max Cell Voltage"
+    delta_cell_voltage:
+      id: bms_diff_v
+      name: "Delta Cell Voltage"
+    power_tube_temperature:
+      id: bms_mos_t
+      name: "MOS Temperature"
+    temperature_sensor_1:
+      id: bms_t1
+      name: "Battery Temp 1"
+
+# Periodically send JSON payload to Cloudflare Worker
+interval:
+  - interval: 15s
+    then:
+      - http_request.post:
+          url: "https://jkbms-cloud.vcode-fiverr.workers.dev/api/telemetry"
+          headers:
+            Content-Type: "application/json"
+            X-API-Key: "CHANGE_ME_SECRET_TOKEN"
+          json: |-
+            root["total_voltage"] = id(bms_tot_v).state;
+            root["current"] = id(bms_cur).state;
+            root["power"] = id(bms_pwr).state;
+            root["soc"] = (int)id(bms_soc).state;
+            root["cell_min_voltage"] = id(bms_min_v).state;
+            root["cell_max_voltage"] = id(bms_max_v).state;
+            root["cell_diff"] = id(bms_diff_v).state;
+            root["temp_mos"] = id(bms_mos_t).state;
+            root["temp_battery_1"] = id(bms_t1).state;
+
