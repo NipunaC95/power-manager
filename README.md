@@ -79,3 +79,4 @@ Visit your deployed Cloudflare URL:
 
 It will load the live telemetry cards, cell voltage bars, and historical battery charts automatically.
 
+# power-manager
