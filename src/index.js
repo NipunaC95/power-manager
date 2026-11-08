@@ -13,7 +13,206 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // 1. Ingest telemetry from ESP32
+    // 1. Ingest telemetry from ESP32 (HTTP POST) and optional WebSocket
+if (url.pathname === "/ws") {
+  const pair = new WebSocketPair();
+  const [client, server] = Object.values(pair);
+  server.accept();
+
+  // Heartbeat interval (keep‑alive) – send a tiny ping every 30 s
+  const heartbeat = setInterval(() => {
+    try { server.send(JSON.stringify({ type: "heartbeat", ts: Date.now() })); } catch (_) {}
+  }, 30000);
+
+  server.addEventListener("message", async ev => {
+    try {
+      const body = JSON.parse(ev.data);
+      const {
+        total_voltage = 0,
+        current = 0,
+        power = (total_voltage * current),
+        soc = 0,
+        capacity_remaining = 0,
+        cell_min_voltage = 0,
+        cell_max_voltage = 0,
+        cell_diff = (cell_max_voltage - cell_min_voltage),
+        temp_mos = 0,
+        temp_battery_1 = 0,
+        temp_battery_2 = 0,
+        charging_enabled = 1,
+        discharging_enabled = 1,
+        cell_voltages = "[]",
+      } = body;
+
+      const cellVoltagesStr = typeof cell_voltages === "string"
+        ? cell_voltages
+        : JSON.stringify(cell_voltages);
+
+      await env.DB.prepare(
+        `INSERT INTO bms_telemetry (
+          total_voltage, current, power, soc, capacity_remaining,
+          cell_min_voltage, cell_max_voltage, cell_diff,
+          temp_mos, temp_battery_1, temp_battery_2,
+          charging_enabled, discharging_enabled, cell_voltages
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        total_voltage, current, power, soc, capacity_remaining,
+        cell_min_voltage, cell_max_voltage, cell_diff,
+        temp_mos, temp_battery_1, temp_battery_2,
+        charging_enabled, discharging_enabled, cellVoltagesStr
+      ).run();
+
+      const telemetryResult = await env.DB.prepare('SELECT last_insert_rowid() as id').first();
+      const telemetryId = telemetryResult?.id;
+      if (telemetryId && Array.isArray(body.cell_voltages)) {
+        for (let i = 0; i < body.cell_voltages.length; i++) {
+          const voltage = Number(body.cell_voltages[i]);
+          await env.DB.prepare(
+            `INSERT INTO cell_data (telemetry_id, cell_index, voltage) VALUES (?, ?, ?)`
+          ).bind(telemetryId, i, voltage).run();
+        }
+      }
+    } catch (e) {
+      console.error("WebSocket telemetry error:", e);
+    }
+  });
+
+  // Clean up on socket close
+  server.addEventListener("close", () => clearInterval(heartbeat));
+
+  return new Response(null, { status: 101, webSocket: client });
+}
+// 1. Ingest telemetry from ESP32 (HTTP POST) and optional WebSocket
+if (url.pathname === "/ws") {
+  const pair = new WebSocketPair();
+  const [client, server] = Object.values(pair);
+  server.accept();
+
+  server.addEventListener("message", async ev => {
+    try {
+      const body = JSON.parse(ev.data);
+      const {
+        total_voltage = 0,
+        current = 0,
+        power = (total_voltage * current),
+        soc = 0,
+        capacity_remaining = 0,
+        cell_min_voltage = 0,
+        cell_max_voltage = 0,
+        cell_diff = (cell_max_voltage - cell_min_voltage),
+        temp_mos = 0,
+        temp_battery_1 = 0,
+        temp_battery_2 = 0,
+        charging_enabled = 1,
+        discharging_enabled = 1,
+        cell_voltages = "[]",
+      } = body;
+
+      const cellVoltagesStr = typeof cell_voltages === "string"
+        ? cell_voltages
+        : JSON.stringify(cell_voltages);
+
+      await env.DB.prepare(
+        `INSERT INTO bms_telemetry (
+          total_voltage, current, power, soc, capacity_remaining,
+          cell_min_voltage, cell_max_voltage, cell_diff,
+          temp_mos, temp_battery_1, temp_battery_2,
+          charging_enabled, discharging_enabled, cell_voltages
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        total_voltage, current, power, soc, capacity_remaining,
+        cell_min_voltage, cell_max_voltage, cell_diff,
+        temp_mos, temp_battery_1, temp_battery_2,
+        charging_enabled, discharging_enabled, cellVoltagesStr
+      ).run();
+
+      const telemetryResult = await env.DB.prepare('SELECT last_insert_rowid() as id').first();
+      const telemetryId = telemetryResult?.id;
+      if (telemetryId && Array.isArray(body.cell_voltages)) {
+        for (let i = 0; i < body.cell_voltages.length; i++) {
+          const voltage = Number(body.cell_voltages[i]);
+          await env.DB.prepare(
+            `INSERT INTO cell_data (telemetry_id, cell_index, voltage) VALUES (?, ?, ?)`
+          ).bind(telemetryId, i, voltage).run();
+        }
+      }
+    } catch (e) {
+      console.error("WebSocket telemetry error:", e);
+    }
+  });
+
+  return new Response(null, { status: 101, webSocket: client });
+}
+// 1. Ingest telemetry from ESP32 (HTTP POST) and optional WebSocket
+if (url.pathname === "/ws") {
+  const pair = new WebSocketPair();
+  const [client, server] = Object.values(pair);
+  server.accept();
+
+  // Heartbeat interval (keep‑alive) – send a tiny ping every 30 s
+  const heartbeat = setInterval(() => {
+    try { server.send(JSON.stringify({ type: "heartbeat", ts: Date.now() })); } catch (_) {}
+  }, 30000);
+
+  server.addEventListener("message", async ev => {
+    try {
+      const body = JSON.parse(ev.data);
+      const {
+        total_voltage = 0,
+        current = 0,
+        power = (total_voltage * current),
+        soc = 0,
+        capacity_remaining = 0,
+        cell_min_voltage = 0,
+        cell_max_voltage = 0,
+        cell_diff = (cell_max_voltage - cell_min_voltage),
+        temp_mos = 0,
+        temp_battery_1 = 0,
+        temp_battery_2 = 0,
+        charging_enabled = 1,
+        discharging_enabled = 1,
+        cell_voltages = "[]",
+      } = body;
+
+      const cellVoltagesStr = typeof cell_voltages === "string"
+        ? cell_voltages
+        : JSON.stringify(cell_voltages);
+
+      await env.DB.prepare(
+        `INSERT INTO bms_telemetry (
+          total_voltage, current, power, soc, capacity_remaining,
+          cell_min_voltage, cell_max_voltage, cell_diff,
+          temp_mos, temp_battery_1, temp_battery_2,
+          charging_enabled, discharging_enabled, cell_voltages
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        total_voltage, current, power, soc, capacity_remaining,
+        cell_min_voltage, cell_max_voltage, cell_diff,
+        temp_mos, temp_battery_1, temp_battery_2,
+        charging_enabled, discharging_enabled, cellVoltagesStr
+      ).run();
+
+      const telemetryResult = await env.DB.prepare('SELECT last_insert_rowid() as id').first();
+      const telemetryId = telemetryResult?.id;
+      if (telemetryId && Array.isArray(body.cell_voltages)) {
+        for (let i = 0; i < body.cell_voltages.length; i++) {
+          const voltage = Number(body.cell_voltages[i]);
+          await env.DB.prepare(
+            `INSERT INTO cell_data (telemetry_id, cell_index, voltage) VALUES (?, ?, ?)`
+          ).bind(telemetryId, i, voltage).run();
+        }
+      }
+    } catch (e) {
+      console.error("WebSocket telemetry error:", e);
+    }
+  });
+
+  // Clean up on socket close
+  server.addEventListener("close", () => clearInterval(heartbeat));
+
+  return new Response(null, { status: 101, webSocket: client });
+}
+// 1. Ingest telemetry from ESP32
     if (url.pathname === "/api/telemetry" && request.method === "POST") {
       const apiKey = request.headers.get("X-API-Key");
       if (env.API_KEY && apiKey !== env.API_KEY) {
