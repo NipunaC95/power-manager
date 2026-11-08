@@ -14,7 +14,6 @@ import Settings from './components/Settings.jsx';
 export default function App() {
   const { latest, history, isWsConnected } = useTelemetry();
   const [selectedCell, setSelectedCell] = useState(null);
-  const [selectedHistoryIndex, setSelectedHistoryIndex] = useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settings, setSettings] = useState(loadSettings);
 
@@ -24,16 +23,6 @@ export default function App() {
       if (d) setSettings(d);
     });
   }, []);
-
-  const selectedHistoryItem =
-    selectedHistoryIndex != null && history[selectedHistoryIndex]
-      ? history[selectedHistoryIndex]
-      : null;
-
-  const selectedPower =
-    selectedHistoryItem != null
-      ? selectedHistoryItem.total_voltage * selectedHistoryItem.current
-      : null;
 
   const val = (key) => latest?.[key] ?? null;
   const fmt = (key, d = 1) => { const v = val(key); return v != null ? Number(v).toFixed(d) : '—'; };
@@ -203,9 +192,6 @@ export default function App() {
                     color="#34d399"
                     fillColor="rgba(52, 211, 153, 0.06)"
                     decimals={0}
-                    selectedIndex={selectedHistoryIndex}
-                    onSelectIndex={setSelectedHistoryIndex}
-                    powerValue={selectedPower}
                   />
 
                   {/* Chart 2: Pack Voltage */}
@@ -217,9 +203,6 @@ export default function App() {
                     color="#61afef"
                     fillColor="rgba(97, 175, 239, 0.06)"
                     decimals={2}
-                    selectedIndex={selectedHistoryIndex}
-                    onSelectIndex={setSelectedHistoryIndex}
-                    powerValue={selectedPower}
                   />
 
                   {/* Chart 3: Active Power */}
@@ -231,9 +214,6 @@ export default function App() {
                     color="#e5933d"
                     fillColor="rgba(229, 147, 61, 0.06)"
                     decimals={0}
-                    selectedIndex={selectedHistoryIndex}
-                    onSelectIndex={setSelectedHistoryIndex}
-                    powerValue={selectedPower}
                   />
                 </div>
               </section>
