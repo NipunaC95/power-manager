@@ -144,10 +144,22 @@ server.on('upgrade', (req, socket, head) => {
         headersStr += `${k}: ${v}\r\n`;
       }
       headersStr += '\r\n';
-      socket.write(headersStr);
 
-      if (upstreamHead && upstreamHead.length > 0) socket.write(upstreamHead);
-      if (head && head.length > 0) upstreamSocket.write(head);
+      socket.on('error', () => upstreamSocket.destroy());
+      upstreamSocket.on('error', () => socket.destroy());
+      socket.on('close', () => upstreamSocket.destroy());
+      upstreamSocket.on('close', () => socket.destroy());
+
+      if (!socket.destroyed) {
+        socket.write(headersStr);
+      }
+
+      if (upstreamHead && upstreamHead.length > 0 && !socket.destroyed) {
+        socket.write(upstreamHead);
+      }
+      if (head && head.length > 0 && !upstreamSocket.destroyed) {
+        upstreamSocket.write(head);
+      }
 
       socket.pipe(upstreamSocket);
       upstreamSocket.pipe(socket);
