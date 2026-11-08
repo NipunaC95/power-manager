@@ -83,3 +83,4 @@ export default function Chart({ title, data, getValue, unit, color, fillColor, d
     </div>
   );
 }
+

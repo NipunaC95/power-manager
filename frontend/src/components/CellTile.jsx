@@ -21,3 +21,4 @@ export default function CellTile({ index, voltage, min, max, count, onClick }) {
     </button>
   );
 }
+

@@ -21,3 +21,4 @@ export default function CellGrid({ cells, minV, maxV, onCellClick }) {
     </div>
   );
 }
+

@@ -94,3 +94,4 @@ export default function CellDetail({ cellIndex, cells, onCellChange, onBack }) {
     </div>
   );
 }
+

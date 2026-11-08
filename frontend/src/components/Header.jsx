@@ -36,3 +36,4 @@ function StatusBadge({ label, color }) {
     </span>
   );
 }
+

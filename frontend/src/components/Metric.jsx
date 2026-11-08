@@ -12,3 +12,4 @@ export default function Metric({ label, value, unit, large, color = 'text-white'
     </div>
   );
 }
+

@@ -22,3 +22,4 @@ export function parseCells(latest) {
   }
   return Array.isArray(cells) ? cells.map(Number) : [];
 }
+
