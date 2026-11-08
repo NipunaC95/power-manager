@@ -140,19 +140,21 @@
     </div>
   </div>
 </div>
-      <div class="flex justify-between items-center mb-3">
-        <div>
-          <h2 class="text-sm font-semibold text-white">Cell Voltages Distribution</h2>
-          <p class="text-xs text-slate-400">Balance status and individual cell health</p>
+      <section class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-sm mt-6">
+        <header class="flex justify-between items-center mb-3">
+          <div>
+            <h2 class="text-sm font-semibold text-white">Cell Voltages Distribution</h2>
+            <p class="text-xs text-slate-400">Balance status and individual cell health</p>
+          </div>
+          <div class="flex items-center gap-3 text-xs">
+            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-rose-500/80"></span> Min</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500/80"></span> Max</span>
+          </div>
+        </header>
+        <div id="cells-container" class="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-16 gap-3 auto-rows-min">
+          <!-- Injected via JavaScript – each cell a card -->
         </div>
-        <div class="flex items-center gap-3 text-xs">
-          <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-rose-500/80"></span> Min</span>
-          <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500/80"></span> Max</span>
-        </div>
-      </div>
-      <div id="cells-container" class="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-16 gap-2">
-        <!-- Injected via JavaScript -->
-      </div>
+      </section>
     </div>
 
     <!-- History Chart -->

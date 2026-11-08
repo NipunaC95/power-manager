@@ -60,6 +60,18 @@ export default {
           charging_enabled, discharging_enabled, cellVoltagesStr
         ).run();
 
+        // Retrieve inserted telemetry ID for cell data linking
+        const telemetryResult = await env.DB.prepare('SELECT last_insert_rowid() as id').first();
+        const telemetryId = telemetryResult?.id;
+        if (telemetryId && Array.isArray(body.cell_voltages)) {
+          for (let i = 0; i < body.cell_voltages.length; i++) {
+            const voltage = Number(body.cell_voltages[i]);
+            await env.DB.prepare(
+              `INSERT INTO cell_data (telemetry_id, cell_index, voltage) VALUES (?, ?, ?)`
+            ).bind(telemetryId, i, voltage).run();
+          }
+        }
+
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
