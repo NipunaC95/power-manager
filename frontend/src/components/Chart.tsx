@@ -24,7 +24,6 @@ export default function Chart<T extends { timestamp?: string; total_voltage?: nu
   decimals = 1,
   selectedIndex: controlledIndex,
   onSelectIndex: setControlledIndex,
-  powerValue: explicitPowerValue,
 }: ChartProps<T>) {
   // Independent selection state per chart when not externally controlled
   const [internalIndex, setInternalIndex] = useState<number | null>(null);
@@ -86,14 +85,6 @@ export default function Chart<T extends { timestamp?: string; total_voltage?: nu
   const activePoint = hasSelection ? points[selectedIndex] : null;
   const activeTimestamp = hasSelection ? timestamps[selectedIndex] : null;
 
-  // Compute power for the selected snapshot independently
-  const activeRecord = hasSelection ? data[selectedIndex] : null;
-  const computedPower =
-    activeRecord && activeRecord.total_voltage != null && activeRecord.current != null
-      ? activeRecord.total_voltage * activeRecord.current
-      : null;
-  const activePower = explicitPowerValue !== undefined ? explicitPowerValue : computedPower;
-
   const handlePointerInteraction = (e: React.MouseEvent | React.TouchEvent) => {
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
@@ -115,7 +106,7 @@ export default function Chart<T extends { timestamp?: string; total_voltage?: nu
       hasSelection ? 'border-[#BF3C27]/50 shadow-sm ring-1 ring-[#BF3C27]/20' : 'border-white/10 hover:border-white/20'
     }`}>
       {/* Chart Header */}
-      <div className="flex flex-col gap-2 pb-2 mb-3 border-b border-dashed border-white/10">
+      <div className="flex flex-col gap-1.5 pb-2 mb-3 border-b border-dashed border-white/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
@@ -123,7 +114,7 @@ export default function Chart<T extends { timestamp?: string; total_voltage?: nu
               {title}
             </h3>
             {hasSelection && (
-              <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#BF3C27]/20 text-[#BF3C27] font-semibold border border-[#BF3C27]/30 animate-pulse">
+              <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#BF3C27]/20 text-[#BF3C27] font-semibold border border-[#BF3C27]/30">
                 INSPECT
               </span>
             )}
@@ -151,32 +142,18 @@ export default function Chart<T extends { timestamp?: string; total_voltage?: nu
           </div>
         </div>
 
-        {/* Inspection Time & Power Readout Bar */}
-        {hasSelection ? (
-          <div className="flex items-center justify-between bg-neutral-900/90 px-2.5 py-1.5 rounded border border-white/10 font-mono text-xs text-neutral-300">
-            <div className="flex items-center gap-1.5">
-              <span className="text-neutral-500 text-[10px] uppercase tracking-wider">Time:</span>
-              <span className="text-white font-medium">{formatTime(activeTimestamp)}</span>
-              <span className="text-neutral-600 text-[10px]">({activeTimestamp})</span>
-            </div>
-            {activePower != null && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-neutral-500 text-[10px] uppercase tracking-wider">Power:</span>
-                <span className="text-[#e5933d] font-semibold tabular-nums">
-                  {Number(activePower).toFixed(0)} W
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center justify-between font-mono text-[10px] text-neutral-500 px-0.5">
-            <span>Range: {min.toFixed(decimals)}–{max.toFixed(decimals)} {unit}</span>
+        {/* Range and inspection subtext */}
+        <div className="flex items-center justify-between font-mono text-[10px] text-neutral-500 px-0.5">
+          <span>Range: {min.toFixed(decimals)}–{max.toFixed(decimals)} {unit}</span>
+          {hasSelection ? (
+            <span className="text-neutral-400">Inspecting {formatTime(activeTimestamp, true)}</span>
+          ) : (
             <span className="text-neutral-600">Tap curve to inspect</span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* SVG Canvas with Interactive Cursor */}
+      {/* SVG Canvas with Interactive Cursor & Tooltip */}
       <div className="relative my-1">
         {/* Y-axis markers */}
         <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between pointer-events-none py-1">
@@ -187,9 +164,9 @@ export default function Chart<T extends { timestamp?: string; total_voltage?: nu
           ))}
         </div>
 
-        {/* Graph SVG */}
+        {/* Graph SVG & Tooltip Container */}
         <div
-          className="ml-8 cursor-crosshair touch-none select-none"
+          className="ml-8 relative cursor-crosshair touch-none select-none"
           onClick={handlePointerInteraction}
           onTouchStart={handlePointerInteraction}
           onTouchMove={handlePointerInteraction}
@@ -200,7 +177,7 @@ export default function Chart<T extends { timestamp?: string; total_voltage?: nu
           <svg
             ref={svgRef}
             viewBox={`0 0 ${W} ${H}`}
-            className="w-full h-28 overflow-visible"
+            className="w-full h-28 overflow-visible block"
             preserveAspectRatio="none"
           >
             {/* Horizontal guidelines */}
@@ -231,7 +208,7 @@ export default function Chart<T extends { timestamp?: string; total_voltage?: nu
               vectorEffect="non-scaling-stroke"
             />
 
-            {/* Active inspection crosshair & dot */}
+            {/* Active inspection crosshair & dot on curve */}
             {activePoint && (
               <g className="pointer-events-none">
                 {/* Vertical cursor line */}
@@ -240,7 +217,7 @@ export default function Chart<T extends { timestamp?: string; total_voltage?: nu
                   y1={PAD_T}
                   x2={activePoint.x}
                   y2={PAD_T + plotH}
-                  stroke="#BF3C27"
+                  stroke={color}
                   strokeWidth="1.5"
                   strokeDasharray="2 2"
                   vectorEffect="non-scaling-stroke"
@@ -249,22 +226,50 @@ export default function Chart<T extends { timestamp?: string; total_voltage?: nu
                 <circle
                   cx={activePoint.x}
                   cy={activePoint.y}
-                  r="5"
-                  fill="#BF3C27"
-                  fillOpacity="0.3"
+                  r="6"
+                  fill={color}
+                  fillOpacity="0.25"
                 />
                 {/* Center dot */}
                 <circle
                   cx={activePoint.x}
                   cy={activePoint.y}
-                  r="3"
+                  r="3.5"
                   fill="#ffffff"
-                  stroke="#BF3C27"
-                  strokeWidth="1.5"
+                  stroke={color}
+                  strokeWidth="2"
                 />
               </g>
             )}
           </svg>
+
+          {/* Floating Tooltip directly on clicked point */}
+          {activePoint && (
+            <div
+              className="absolute pointer-events-none z-20 transition-all duration-75"
+              style={{
+                left: `${(activePoint.x / W) * 100}%`,
+                top: `${(activePoint.y / H) * 100}%`,
+                transform: `translate(${
+                  activePoint.x > W * 0.72
+                    ? '-100%'
+                    : activePoint.x < W * 0.28
+                    ? '0%'
+                    : '-50%'
+                }, ${activePoint.y < 35 ? '14px' : '-125%'})`,
+              }}
+            >
+              <div className="bg-[#18181b]/95 border border-white/20 shadow-2xl rounded px-2.5 py-1 font-mono backdrop-blur-sm whitespace-nowrap text-left ring-1 ring-black/50">
+                <div className="flex items-center gap-1 text-xs font-semibold tabular-nums" style={{ color }}>
+                  <span>{activeValue.toFixed(decimals)}</span>
+                  <span className="text-[10px] text-neutral-400 font-normal">{unit}</span>
+                </div>
+                <div className="text-[9px] text-neutral-400 mt-0.5">
+                  {formatTime(activeTimestamp, true)}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
