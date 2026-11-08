@@ -24,26 +24,12 @@ static NimBLERemoteCharacteristic* pWriteChar = nullptr;
 static NimBLERemoteCharacteristic* pNotifyChar = nullptr;
 static NimBLEClient* pClient = nullptr;
 
-// BLE client callbacks to manage connection state
-class MyClientCallbacks : public NimBLEClientCallbacks {
-public:
-  void onConnect(NimBLEClient* pclient) override {
-    connectedToBms = true;
-    Serial.println("[BLE] Client connected");
-  }
-  void onDisconnect(NimBLEClient* pclient) override {
-    Serial.println("[BLE] Client disconnected");
-    connectedToBms = false;
-    pNotifyChar = nullptr;
-    pWriteChar = nullptr;
-  }
-};
-
-// Periodic Wi‑Fi status check (every 10 s)
+bool connectedToBms = false;                     // tracks BLE link state
 unsigned long lastWifiCheck = 0;
-
 unsigned long lastUploadTime = 0;
-const unsigned long UPLOAD_INTERVAL_MS = 15000;
+unsigned long lastReconnectAttempt = 0;
+const unsigned long UPLOAD_INTERVAL_MS = 15000;   // 15 s
+const unsigned long RECONNECT_COOLDOWN_MS = 3000; // 3 s back‑off
 
 struct BmsData {
   float total_voltage = 0.0;
@@ -60,6 +46,40 @@ struct BmsData {
 } bmsData;
 
 std::vector<uint8_t> frameBuffer;
+
+// ---------------------- BLE client callbacks ----------------------
+class MyClientCallbacks : public NimBLEClientCallbacks {
+public:
+  void onConnect(NimBLEClient* pclient) override {
+    connectedToBms = true;
+    Serial.println("[BLE] Client connected");
+  }
+  void onDisconnect(NimBLEClient* pclient) override {
+    Serial.println("[BLE] Client disconnected");
+    uint8_t reason = pclient->getDisconnectReason();
+    Serial.printf("[BLE] Disconnect reason: 0x%02X\n", reason);
+    connectedToBms = false;
+    pNotifyChar = nullptr;
+    pWriteChar = nullptr;
+    NimBLEDevice::deleteClient(pclient);
+    pClient = nullptr;
+  }
+};
+public:
+  void onConnect(NimBLEClient* pclient) override {
+    connectedToBms = true;
+    Serial.println("[BLE] Client connected");
+  }
+  void onDisconnect(NimBLEClient* pclient) override {
+    Serial.println("[BLE] Client disconnected");
+    connectedToBms = false;
+    pNotifyChar = nullptr;
+    pWriteChar = nullptr;
+    // Delete the stale client so a fresh one is created on next attempt
+    NimBLEDevice::deleteClient(pclient);
+    pClient = nullptr;
+  }
+};
 
 // ---------------------- Parse JK02_32S (V19) Frame ----------------------
 void parseJKFrame(const uint8_t* data, size_t length) {
@@ -91,7 +111,7 @@ void parseJKFrame(const uint8_t* data, size_t length) {
           uint16_t mV = (frameBuffer[idx] << 8) | frameBuffer[idx + 1];
           idx += 2;
           float v = mV / 1000.0;
-          if (v > 1.5 && v < 5.0) { // Valid LiFePO4 / Li-ion cell range
+          if (v > 1.5 && v < 5.0) {
             bmsData.cells.push_back(v);
             if (v < minV) minV = v;
             if (v > maxV) maxV = v;
@@ -99,27 +119,27 @@ void parseJKFrame(const uint8_t* data, size_t length) {
         }
         bmsData.cell_min = (minV < 90.0) ? minV : 0.0;
         bmsData.cell_max = maxV;
-      } else if (tag == 0x80) { // MOS Temp
+      } else if (tag == 0x80) {
         bmsData.temp_mos = (int16_t)((frameBuffer[idx] << 8) | frameBuffer[idx + 1]);
         idx += 2;
-      } else if (tag == 0x81) { // Battery Temp 1
+      } else if (tag == 0x81) {
         bmsData.temp_bat1 = (int16_t)((frameBuffer[idx] << 8) | frameBuffer[idx + 1]);
         idx += 2;
-      } else if (tag == 0x82) { // Battery Temp 2
+      } else if (tag == 0x82) {
         bmsData.temp_bat2 = (int16_t)((frameBuffer[idx] << 8) | frameBuffer[idx + 1]);
         idx += 2;
-      } else if (tag == 0x83) { // Total Voltage
+      } else if (tag == 0x83) {
         bmsData.total_voltage = ((frameBuffer[idx] << 8) | frameBuffer[idx + 1]) / 100.0;
         idx += 2;
-      } else if (tag == 0x84) { // Current
+      } else if (tag == 0x84) {
         int16_t rawCur = (frameBuffer[idx] << 8) | frameBuffer[idx + 1];
         bmsData.current = (rawCur & 0x7FFF) / 100.0;
         if ((rawCur & 0x8000) == 0) bmsData.current = -bmsData.current;
         idx += 2;
-      } else if (tag == 0x85) { // SOC %
+      } else if (tag == 0x85) {
         bmsData.soc = frameBuffer[idx++];
-      } else if (tag == 0x87) { // Remaining Capacity Ah
-        bmsData.capacity_remaining = ((frameBuffer[idx] << 24) | (frameBuffer[idx + 1] << 16) | 
+      } else if (tag == 0x87) {
+        bmsData.capacity_remaining = ((frameBuffer[idx] << 24) | (frameBuffer[idx + 1] << 16) |
                                       (frameBuffer[idx + 2] << 8) | frameBuffer[idx + 3]) / 1000.0;
         idx += 4;
       } else {
@@ -128,7 +148,7 @@ void parseJKFrame(const uint8_t* data, size_t length) {
     }
 
     bmsData.updated = true;
-    Serial.printf("[BMS] Parsed: V=%.2fV Cur=%.2fA SOC=%d%% Cells=%d\n", 
+    Serial.printf("[BMS] Parsed: V=%.2fV Cur=%.2fA SOC=%d%% Cells=%d\n",
                   bmsData.total_voltage, bmsData.current, bmsData.soc, bmsData.cells.size());
     frameBuffer.erase(frameBuffer.begin(), frameBuffer.begin() + expectedLen + 4);
   }
@@ -138,14 +158,13 @@ void notifyCallback(NimBLERemoteCharacteristic* pChar, uint8_t* pData, size_t le
   parseJKFrame(pData, length);
 }
 
-// Request all telemetry parameters from V19 JK-BMS
+// Request all telemetry parameters from V19 JK‑BMS
 void requestBmsData() {
   if (!pWriteChar) return;
-  // Command 0x06 (Read all data)
-  const uint8_t reqCmd[] = { 
-    0x4E, 0x57, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00, 
-    0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x68, 0x00, 0x00, 0x01, 0x29 
+  const uint8_t reqCmd[] = {
+    0x4E, 0x57, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00,
+    0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x68, 0x00, 0x00, 0x01, 0x29
   };
   pWriteChar->writeValue(reqCmd, sizeof(reqCmd), false);
 }
@@ -200,65 +219,80 @@ void setup() {
 
   NimBLEDevice::init("ESP32_JK_GATEWAY");
   NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Max BLE transmission power
+  // Create initial client (will be recreated on disconnect)
   pClient = NimBLEDevice::createClient();
-  // Register our client callbacks to track connection state
   pClient->setClientCallbacks(new MyClientCallbacks());
 }
 
 void loop() {
-  if (!pClient->isConnected()) {
-    Serial.println("[BLE] Scanning for JK-BMS (507268D28101263 / Service FFE0)...");
-    NimBLEScan* pScan = NimBLEDevice::getScan();
-    pScan->setActiveScan(true);
-    pScan->setInterval(100);
-    pScan->setWindow(99);
-    NimBLEScanResults results = pScan->start(6, false);
+  // ---------- BLE connection handling ----------
+  if (!pClient || !pClient->isConnected()) {
+    // Respect back‑off to avoid rapid reconnect loops that trigger BMS beeps
+    if (millis() - lastReconnectAttempt < RECONNECT_COOLDOWN_MS) {
+      // just wait
+    } else {
+      lastReconnectAttempt = millis();
+      Serial.println("[BLE] Scanning for JK‑BMS …");
+      NimBLEScan* pScan = NimBLEDevice::getScan();
+      pScan->setActiveScan(true);
+      pScan->setInterval(500);   // 0.5 s interval
+      pScan->setWindow(450);    // 0.45 s window
+      NimBLEScanResults results = pScan->start(6, false);
 
-    for (int i = 0; i < results.getCount(); i++) {
-      NimBLEAdvertisedDevice device = results.getDevice(i);
-      String devName = String(device.getName().c_str());
-      String devAddr = String(device.getAddress().toString().c_str());
-      bool hasSvc = device.haveServiceUUID() && device.isAdvertisingService(SERVICE_UUID);
+      for (int i = 0; i < results.getCount(); i++) {
+        NimBLEAdvertisedDevice device = results.getDevice(i);
+        String devName = String(device.getName().c_str());
+        String devAddr = String(device.getAddress().toString().c_str());
+        bool hasSvc = device.haveServiceUUID() && device.isAdvertisingService(SERVICE_UUID);
+        bool match = false;
+        if (devName.indexOf(TARGET_NAME) >= 0 || devName == TARGET_NAME) {
+          match = true;
+        } else if (hasSvc) {
+          match = true;
+        } else if (devName.indexOf("JK") >= 0 || devName.indexOf("B1A8S") >= 0) {
+          match = true;
+        }
 
-      bool match = false;
-      if (devName.indexOf(TARGET_NAME) >= 0 || devName == TARGET_NAME) {
-        match = true;
-      } else if (hasSvc) {
-        match = true;
-      } else if (devName.indexOf("JK") >= 0 || devName.indexOf("B1A8S") >= 0) {
-        match = true;
-      }
-
-      if (match) {
-        Serial.printf("[BLE] Matching BMS Found: '%s' [%s] RSSI:%d\n", devName.c_str(), devAddr.c_str(), device.getRSSI());
-        if (pClient->connect(&device)) {
-          Serial.println("[BLE] Connected! Discovering services...");
-          NimBLERemoteService* pSvc = pClient->getService(SERVICE_UUID);
-          if (pSvc) {
-            pNotifyChar = pSvc->getCharacteristic(CHAR_NOTIFY_UUID);
-            pWriteChar = pSvc->getCharacteristic(CHAR_WRITE_UUID);
-            if (pNotifyChar && pNotifyChar->canNotify()) {
-              pNotifyChar->subscribe(true, notifyCallback);
-              Serial.println("[BLE] Subscribed to BMS notifications!");
+        if (match) {
+          Serial.printf("[BLE] Matching BMS Found: '%s' [%s] RSSI:%d\n",
+                        devName.c_str(), devAddr.c_str(), device.getRSSI());
+          // Ensure a client exists
+          if (!pClient) {
+            pClient = NimBLEDevice::createClient();
+            pClient->setClientCallbacks(new MyClientCallbacks());
+          }
+          if (pClient->connect(&device)) {
+            Serial.println("[BLE] Connected! Discovering services...");
+            NimBLERemoteService* pSvc = pClient->getService(SERVICE_UUID);
+            if (pSvc) {
+              pNotifyChar = pSvc->getCharacteristic(CHAR_NOTIFY_UUID);
+              pWriteChar = pSvc->getCharacteristic(CHAR_WRITE_UUID);
+              if (pNotifyChar && pNotifyChar->canNotify()) {
+                pNotifyChar->subscribe(true, notifyCallback);
+                Serial.println("[BLE] Subscribed to BMS notifications!");
+              }
             }
           }
+          break; // stop scanning after first match
         }
-        break;
       }
     }
   }
 
-  if (pClient->isConnected()) {
+  // ---------- Data request ----------
+  if (pClient && pClient->isConnected()) {
     requestBmsData();
   }
 
-  // Periodic Wi‑Fi status check (every 10 s)
+  // ---------- Wi‑Fi status check (every 10 s) ----------
   if (millis() - lastWifiCheck >= 10000) {
     Serial.print("[WiFi] Status: ");
     Serial.println(WiFi.status() == WL_CONNECTED ? "connected" : "disconnected");
     lastWifiCheck = millis();
   }
 
+  // ---------- Cloudflare upload (every 15 s) ----------
+  if (millis() - lastUploadTime >= UPLOAD_INTERVAL_MS) {
     uploadToCloudflare();
     lastUploadTime = millis();
   }
