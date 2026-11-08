@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS = {
   socMethod: 'lifepo4_curve', // 'lifepo4_curve' | 'voltage_range' | 'capacity_ratio'
   vMin: 24.0, // 0% SOC pack voltage (8S default)
   vMax: 27.2, // 100% SOC pack voltage (8S default)
+  sohOverride: 100, // 100% default State of Health
 };
 
 export function loadSettings() {
@@ -120,4 +121,51 @@ export function calculateSoc(telemetry, settings) {
   }
 
   return Math.max(0, Math.min(100, Math.round(telemetry.soc ?? 0)));
+}
+
+/**
+ * Calculate Capacity Remaining in Ah
+ * When manual SOC override is active or when raw BMS capacity is 0 / uncalibrated,
+ * calculates Ah remaining based on active SOC and configured battery capacity.
+ */
+export function calculateCapacityRemaining(telemetry, settings, displaySoc) {
+  if (!telemetry) return 0;
+  const rawCap = Number(telemetry.capacity_remaining);
+  const ratedAh = Number(settings?.batteryCapacityAh) || 100;
+
+  if (settings?.enableManualSoc || !rawCap || rawCap <= 0) {
+    const soc = displaySoc != null ? displaySoc : calculateSoc(telemetry, settings);
+    return Math.max(0, Math.min(ratedAh, (soc / 100) * ratedAh));
+  }
+
+  return rawCap;
+}
+
+/**
+ * Calculate SOH (State of Health) %
+ * Calculates pack health based on manual override setting or cell balance dispersion.
+ */
+export function calculateSoh(telemetry, settings) {
+  if (!telemetry) return 100;
+
+  // Custom user override in settings
+  if (settings?.sohOverride != null && Number(settings.sohOverride) > 0) {
+    return Math.min(100, Math.max(0, Math.round(Number(settings.sohOverride))));
+  }
+
+  // Automatic calculation based on cell voltage divergence
+  let cells = [];
+  if (Array.isArray(telemetry.cell_voltages)) {
+    cells = telemetry.cell_voltages.map(Number);
+  } else if (typeof telemetry.cell_voltages === 'string') {
+    try { cells = JSON.parse(telemetry.cell_voltages).map(Number); } catch (e) {}
+  }
+
+  if (cells.length >= 2) {
+    const deltaMv = (Math.max(...cells) - Math.min(...cells)) * 1000;
+    if (deltaMv > 100) return Math.max(70, Math.round(100 - (deltaMv - 100) * 0.15));
+    if (deltaMv > 50) return Math.max(90, Math.round(100 - (deltaMv - 50) * 0.2));
+  }
+
+  return 100;
 }

@@ -39,8 +39,9 @@ CREATE TABLE IF NOT EXISTS bms_settings (
     soc_method          TEXT NOT NULL DEFAULT 'lifepo4_curve',
     v_min               REAL NOT NULL DEFAULT 24.0,
     v_max               REAL NOT NULL DEFAULT 27.2,
+    soh_override        REAL DEFAULT 100,
     updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT OR IGNORE INTO bms_settings (id, battery_capacity_ah, enable_manual_soc, soc_method, v_min, v_max)
-VALUES (1, 100, 0, 'lifepo4_curve', 24.0, 27.2);
+INSERT OR IGNORE INTO bms_settings (id, battery_capacity_ah, enable_manual_soc, soc_method, v_min, v_max, soh_override)
+VALUES (1, 100, 0, 'lifepo4_curve', 24.0, 27.2, 100);

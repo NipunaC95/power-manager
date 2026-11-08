@@ -255,6 +255,7 @@ export default {
           socMethod: row.soc_method,
           vMin: row.v_min,
           vMax: row.v_max,
+          sohOverride: row.soh_override != null ? row.soh_override : 100,
           updatedAt: row.updated_at,
         });
       }
@@ -265,6 +266,7 @@ export default {
         socMethod: "lifepo4_curve",
         vMin: 24.0,
         vMax: 27.2,
+        sohOverride: 100,
       });
     }
 
@@ -277,18 +279,20 @@ export default {
         const socMethod = String(body.socMethod || "lifepo4_curve");
         const vMin = Number(body.vMin) || 24.0;
         const vMax = Number(body.vMax) || 27.2;
+        const sohOverride = Number(body.sohOverride) > 0 ? Number(body.sohOverride) : 100;
 
         await env.DB.prepare(`
-          INSERT INTO bms_settings (id, battery_capacity_ah, enable_manual_soc, soc_method, v_min, v_max, updated_at)
-          VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          INSERT INTO bms_settings (id, battery_capacity_ah, enable_manual_soc, soc_method, v_min, v_max, soh_override, updated_at)
+          VALUES (1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
           ON CONFLICT(id) DO UPDATE SET
             battery_capacity_ah = excluded.battery_capacity_ah,
             enable_manual_soc = excluded.enable_manual_soc,
             soc_method = excluded.soc_method,
             v_min = excluded.v_min,
             v_max = excluded.v_max,
+            soh_override = excluded.soh_override,
             updated_at = CURRENT_TIMESTAMP;
-        `).bind(batteryCapacityAh, enableManualSoc, socMethod, vMin, vMax).run();
+        `).bind(batteryCapacityAh, enableManualSoc, socMethod, vMin, vMax, sohOverride).run();
 
         return json({
           success: true,
@@ -298,6 +302,7 @@ export default {
             socMethod,
             vMin,
             vMax,
+            sohOverride,
           },
         });
       } catch (err) {

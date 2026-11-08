@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DEFAULT_SETTINGS, calculateSoc, saveSettingsApi } from '../utils/soc.js';
+import { DEFAULT_SETTINGS, calculateSoc, calculateCapacityRemaining, calculateSoh, saveSettingsApi } from '../utils/soc.js';
 
 export default function Settings({ settings, onSave, onBack, latest }) {
   const [form, setForm] = useState({ ...settings });
@@ -8,6 +8,8 @@ export default function Settings({ settings, onSave, onBack, latest }) {
 
   const previewSoc = calculateSoc(latest, form);
   const rawSoc = latest?.soc ?? '—';
+  const previewCap = calculateCapacityRemaining(latest, form, previewSoc);
+  const previewSoh = calculateSoh(latest, form);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -56,7 +58,7 @@ export default function Settings({ settings, onSave, onBack, latest }) {
             <span>Live Calculation Preview</span>
             <span className="text-neutral-500">Realtime Bus: {latest?.total_voltage ? `${latest.total_voltage.toFixed(2)} V` : '—'}</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 font-mono">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
             <div className="bg-neutral-900/80 p-3 rounded border border-white/5">
               <div className="text-[10px] text-neutral-500 uppercase mb-1">BMS Reported SOC</div>
               <div className="text-xl font-medium text-neutral-300">{rawSoc}%</div>
@@ -75,10 +77,15 @@ export default function Settings({ settings, onSave, onBack, latest }) {
                 {form.enableManualSoc ? 'Manual Override Applied' : 'Using BMS Reported'}
               </div>
             </div>
-            <div className="col-span-2 sm:col-span-1 bg-neutral-900/80 p-3 rounded border border-white/5">
-              <div className="text-[10px] text-neutral-500 uppercase mb-1">Pack Capacity</div>
-              <div className="text-xl font-medium text-white">{form.batteryCapacityAh} Ah</div>
-              <div className="text-[10px] text-neutral-600 mt-0.5">Rated capacity setting</div>
+            <div className="bg-neutral-900/80 p-3 rounded border border-white/5">
+              <div className="text-[10px] text-neutral-500 uppercase mb-1">Capacity Left</div>
+              <div className="text-xl font-medium text-white">{previewCap.toFixed(1)} Ah</div>
+              <div className="text-[10px] text-neutral-600 mt-0.5">{form.enableManualSoc ? 'Calculated from SOC' : 'Active Remaining'}</div>
+            </div>
+            <div className="bg-neutral-900/80 p-3 rounded border border-white/5">
+              <div className="text-[10px] text-neutral-500 uppercase mb-1">Pack SOH</div>
+              <div className="text-xl font-medium text-emerald-400">{previewSoh}%</div>
+              <div className="text-[10px] text-neutral-600 mt-0.5">State of Health</div>
             </div>
           </div>
         </div>
@@ -239,6 +246,51 @@ export default function Settings({ settings, onSave, onBack, latest }) {
               )}
             </div>
           )}
+        </div>
+
+        {/* Setting 3: State of Health (SOH) Configuration */}
+        <div className="bg-[#1b1b1f] border border-white/10 rounded-sm p-5 space-y-4">
+          <div>
+            <h3 className="font-serif text-base text-white font-normal mb-1">State of Health (SOH)</h3>
+            <p className="font-mono text-xs text-neutral-400">
+              Set manual pack health rating or calibrate based on cell age and cycle degradation.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="relative w-full sm:w-64">
+              <input
+                type="number"
+                min="10"
+                max="100"
+                step="1"
+                value={form.sohOverride ?? 100}
+                onChange={(e) => handleChange('sohOverride', Number(e.target.value))}
+                className="w-full bg-neutral-900 border border-white/10 rounded px-3 py-2 text-white font-mono text-sm focus:border-white/30 focus:outline-none"
+                placeholder="100"
+              />
+              <span className="absolute right-3 top-2.5 font-mono text-xs text-neutral-500">%</span>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="flex items-center gap-1.5 font-mono text-xs">
+              <span className="text-neutral-500 text-[10px] mr-1">Presets:</span>
+              {[100, 95, 90, 85, 80].map((soh) => (
+                <button
+                  type="button"
+                  key={soh}
+                  onClick={() => handleChange('sohOverride', soh)}
+                  className={`px-2 py-1 rounded text-xs transition-colors cursor-pointer ${
+                    (form.sohOverride ?? 100) === soh
+                      ? 'zed-btn-rust text-white font-semibold'
+                      : 'zed-btn-neutral text-neutral-300'
+                  }`}
+                >
+                  {soh}%
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Action Buttons */}
