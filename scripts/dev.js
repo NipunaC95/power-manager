@@ -13,13 +13,14 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 
-// ── Upstream Worker URLs ────────────────────────────────────
+// ── Upstream Worker URLs (from .env) ───────────────────────
 const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://jkbms-dashboard.vcode-fiverr.workers.dev';
-const INGEST_URL = process.env.INGEST_URL || 'https://jkbms-cloud.vcode-fiverr.workers.dev';
+const INGEST_URL = process.env.INGEST_URL || process.env.CLOUDFLARE_URL || 'https://jkbms-cloud.vcode-fiverr.workers.dev';
 const PUBLIC_DIR = path.resolve(__dirname, '..', 'public');
 const FRONTEND_DIR = path.resolve(__dirname, '..', 'frontend');
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT || '3000', 10);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',

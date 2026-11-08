@@ -5,23 +5,36 @@
  * and commits records to Cloudflare D1 via the Ingestion Worker.
  */
 
+import path from "path";
+import dotenv from "dotenv";
 import mqtt from "mqtt";
 
-const MQTT_BROKER = process.env.MQTT_BROKER_URL || "mqtt://broker.emqx.io:1883";
+// Load .env from root directory as single source of truth
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+
+const mqttServer = process.env.MQTT_SERVER || "broker.emqx.io";
+const mqttPort = process.env.MQTT_PORT || "1883";
+const MQTT_BROKER = process.env.MQTT_BROKER_URL || `mqtt://${mqttServer}:${mqttPort}`;
 const MQTT_TOPIC = process.env.MQTT_TOPIC || "jkbms/+/telemetry";
-const INGEST_URL = process.env.CLOUDFLARE_URL || "https://jkbms-cloud.vcode-fiverr.workers.dev/api/telemetry";
-const API_KEY = process.env.API_KEY || "5fedefec-82d6-4d92-b316-4d92c8704426";
+const INGEST_URL = process.env.CLOUDFLARE_URL || process.env.INGEST_URL || "https://jkbms-cloud.vcode-fiverr.workers.dev/api/telemetry";
+const API_KEY = process.env.API_KEY || "";
+const MQTT_USER = process.env.MQTT_USER;
+const MQTT_PASS = process.env.MQTT_PASSWORD;
 
 console.log("=========================================");
 console.log("   JK-BMS MQTT -> D1 DATABASE BRIDGE    ");
 console.log("=========================================");
-console.log(`Broker URL : ${MQTT_BROKER}`);
-console.log(`Topic      : ${MQTT_TOPIC}`);
-console.log(`Ingest URL : ${INGEST_URL}`);
+console.log(`Source of Truth: .env`);
+console.log(`Broker URL     : ${MQTT_BROKER}`);
+console.log(`Topic          : ${MQTT_TOPIC}`);
+console.log(`Ingest URL     : ${INGEST_URL}`);
+console.log(`API Key        : ${API_KEY ? "********" + API_KEY.slice(-4) : "None"}`);
 console.log("-----------------------------------------");
 
 const client = mqtt.connect(MQTT_BROKER, {
   clientId: `jkbms_bridge_${Math.random().toString(16).substring(2, 8)}`,
+  username: MQTT_USER || undefined,
+  password: MQTT_PASS || undefined,
   clean: true,
   connectTimeout: 10000,
   reconnectPeriod: 3000,

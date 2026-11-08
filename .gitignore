@@ -24,6 +24,9 @@ public/bundle.js
 
 # Secrets
 .env
+*.dev.vars
+esp32/config.h
+src_pio/config.h
 
 # Wrangler cache
 .wrangler/

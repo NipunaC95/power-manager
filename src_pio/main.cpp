@@ -7,25 +7,11 @@
 #include <PubSubClient.h>
 #include <NimBLEDevice.h>
 #include <ArduinoJson.h>
-
-// ---------------------- Configuration ----------------------
-const char* WIFI_SSID     = "SLT-Fiber-2.4G-9240";
-const char* WIFI_PASSWORD = "9d80e972e!";
-
-// Target BMS Serial / Name
-const String TARGET_SERIAL = "507268D28101263";
+#include "config.h"
 
 // Standard JK BLE UUIDs
 static BLEUUID SERVICE_UUID("0000ffe0-0000-1000-8000-00805f9b34fb");
 static BLEUUID CHAR_NOTIFY_UUID("0000ffe1-0000-1000-8000-00805f9b34fb");
-
-// ---------------------- MQTT Configuration ----------------------
-// Set to your MQTT broker address (e.g. "broker.emqx.io", "test.mosquitto.org", or local IP e.g. "192.168.1.100")
-const char* MQTT_SERVER   = "broker.emqx.io";
-const int   MQTT_PORT     = 1883;
-const char* MQTT_USER     = "";
-const char* MQTT_PASS     = "";
-const char* MQTT_TOPIC    = "jkbms/507268D28101263/telemetry";
 
 const uint8_t COMMAND_CELL_INFO   = 0x96;
 const uint8_t COMMAND_DEVICE_INFO = 0x97;
