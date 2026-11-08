@@ -189,7 +189,8 @@ void uploadToCloudflare() {
   doc["cell_diff"] = bmsData.cell_max - bmsData.cell_min;
   doc["temp_mos"] = bmsData.temp_mos;
   doc["temp_battery_1"] = bmsData.temp_bat1;
-  doc["temp_battery_2"] = bmsData.temp_bat2;
+  doc["charging_enabled"] = 1;
+  doc["discharging_enabled"] = 1;
 
   JsonArray cellArr = doc.createNestedArray("cell_voltages");
   for (float cv : bmsData.cells) {
