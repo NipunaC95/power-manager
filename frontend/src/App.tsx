@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTelemetry } from './hooks/useTelemetry';
 import { parseCells } from './utils/format';
-import { loadSettings, calculateSoc, calculateCapacityRemaining, calculateSoh, fetchSettingsApi } from './utils/soc';
+import { loadSettings, calculateSoc, calculateCapacityRemaining, fetchSettingsApi } from './utils/soc';
 import { BmsSettings, TelemetryData } from './types';
 
 import Header from './components/Header';
@@ -39,7 +39,6 @@ export default function App() {
   const current = val('current');
   const displaySoc = calculateSoc(latest, settings);
   const displayCapacity = calculateCapacityRemaining(latest, settings, displaySoc);
-  const displaySoh = calculateSoh(latest, settings);
 
   const isCharging = current != null && Number(current) > 0.5;
   const isDischarging = current != null && Number(current) < -0.5;
@@ -150,20 +149,13 @@ export default function App() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 <Metric
                   label="Cell Delta"
                   value={cellDiffMv}
                   unit="mV"
                   color={cellDiffMv !== '—' && Number(cellDiffMv) > 30 ? 'text-[#BF3C27]' : 'text-neutral-200'}
                   sub={cellDiffMv !== '—' && Number(cellDiffMv) <= 15 ? 'Excellent balance' : null}
-                />
-                <Metric
-                  label="State of Health"
-                  value={displaySoh}
-                  unit="%"
-                  color={displaySoh < 80 ? 'text-[#BF3C27]' : 'text-emerald-400'}
-                  sub={settings.sohOverride != null && settings.sohOverride < 100 ? 'Manual SOH override' : 'Optimal health'}
                 />
                 <Metric label="MOSFET Temp" value={fmt('temp_mos')} unit="°C" />
                 <Metric label="Probe Temp 1" value={fmt('temp_battery_1')} unit="°C" />
