@@ -79,7 +79,7 @@ export default function App() {
               sub={soc != null && soc > 90 ? 'Battery full capacity' : null}
             />
             <Metric
-              label="Pack Voltage"
+              label="Voltage"
               value={fmt('total_voltage', 2)}
               unit="V"
               large
@@ -93,7 +93,7 @@ export default function App() {
               color={isCharging ? 'text-emerald-400' : isDischarging ? 'text-[#e5933d]' : 'text-neutral-300'}
             />
             <Metric
-              label="Active Power"
+              label="Power"
               value={fmt('power', 0)}
               unit="W"
               large
@@ -160,7 +160,7 @@ export default function App() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Chart
-                title="Pack Voltage History"
+                title="Voltage History"
                 data={history}
                 getValue={(d) => d.total_voltage}
                 unit="V"
@@ -172,7 +172,7 @@ export default function App() {
                 powerValue={selectedPower}
               />
               <Chart
-                title="Active Power History"
+                title="Power History"
                 data={history}
                 getValue={(d) => d.total_voltage * d.current}
                 unit="W"

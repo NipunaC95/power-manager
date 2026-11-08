@@ -17,7 +17,7 @@ flowchart TD
 
 1. **ESP32**: Connects to the JK-BMS over BLE (Service `0xFFE0`), decodes the JK binary frame, and sends JSON payloads every 15s over HTTPS.
 2. **Cloudflare Worker & D1**: Serverless API endpoint (`/api/telemetry`) that writes records to a free serverless D1 SQLite database.
-3. **Cloudflare Pages / Dashboard**: Serves a sleek dark-mode dashboard showing pack voltage, current, power, SoC, temperatures, individual cell voltages, and historical line charts.
+3. **Cloudflare Pages / Dashboard**: Serves a sleek dark-mode dashboard showing Voltage, current, power, SoC, temperatures, individual cell voltages, and historical line charts.
 
 ---
 
