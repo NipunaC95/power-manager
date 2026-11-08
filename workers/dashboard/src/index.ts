@@ -21,9 +21,9 @@ interface RawTelemetryRow {
   current: number;
   soc: number;
   capacity_remaining: number;
-  cell_min_voltage?: number;
-  cell_max_voltage?: number;
-  cell_diff?: number;
+  cell_min_voltage?: number | null;
+  cell_max_voltage?: number | null;
+  cell_diff?: number | null;
   temp_mos?: number;
   temp_battery_1?: number;
   temp_battery_2?: number;

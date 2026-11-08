@@ -4,14 +4,18 @@
   "private": true,
   "scripts": {
     "dev": "cd frontend && npm install --silent && node ../scripts/dev.js",
+    "typecheck": "tsc --noEmit && cd frontend && npm run typecheck",
     "build:frontend": "cd frontend && npm install --silent && node build.js",
-    "deploy:ingest": "cd workers/ingest && wrangler deploy",
-    "deploy:dashboard": "npm run build:frontend && cd workers/dashboard && wrangler deploy",
-    "deploy": "npm run deploy:ingest && npm run deploy:dashboard",
+    "build:workers": "esbuild workers/ingest/src/index.ts --outfile=workers/ingest/src/index.js --format=esm --target=es2022 && esbuild workers/dashboard/src/index.ts --outfile=workers/dashboard/src/index.js --format=esm --target=es2022",
+    "build": "npm run build:workers && npm run build:frontend",
+    "deploy:ingest": "npm run build:workers && cd workers/ingest && wrangler deploy",
+    "deploy:dashboard": "npm run build && cd workers/dashboard && wrangler deploy",
+    "deploy": "npm run build && cd workers/ingest && wrangler deploy && cd ../dashboard && wrangler deploy",
     "db:init": "cd workers/ingest && wrangler d1 execute jkbms-db --remote --file=../../schema.sql"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261108.1",
+    "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
   }
 }

@@ -34,11 +34,9 @@ const MIME = {
 
 // ── 1) esbuild watch ────────────────────────────────────────
 const esbuild = spawn('npx', [
-  'esbuild', 'src/main.jsx',
+  'esbuild', 'src/main.tsx',
   '--bundle',
   '--outfile=../public/bundle.js',
-  '--loader:.js=jsx',
-  '--loader:.jsx=jsx',
   '--sourcemap',
   '--watch',
 ], { cwd: FRONTEND_DIR, shell: true, stdio: 'pipe' });
