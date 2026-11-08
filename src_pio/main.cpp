@@ -284,6 +284,11 @@ void loop() {
         Serial.printf("[BLE] Found device '%s' [%s]. Connecting...\n", devName.c_str(), devAddr.c_str());
         if (pClient->connect(&device)) {
           Serial.println("[BLE] Connected! Locating FFE0 service...");
+
+          // [Fix A] Set supervision timeout to 10 seconds to prevent BMS disconnect beeps during WiFi transmissions
+          // Parameters: minInterval=20ms (16*1.25ms), maxInterval=40ms (32*1.25ms), latency=0, timeout=10,000ms (1000*10ms)
+          pClient->setConnectionParams(16, 32, 0, 1000);
+
           NimBLERemoteService* pSvc = pClient->getService(SERVICE_UUID);
           if (pSvc) {
             pChar = pSvc->getCharacteristic(CHAR_NOTIFY_UUID);
