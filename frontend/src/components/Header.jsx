@@ -1,7 +1,7 @@
 import React from 'react';
 import { timeAgo } from '../utils/format.js';
 
-export default function Header({ latest, isCharging, isDischarging, isOnline, isWsConnected }) {
+export default function Header({ latest, isCharging, isDischarging, isOnline, isWsConnected, onOpenSettings }) {
   const lastUpdate = latest?.timestamp ? timeAgo(latest.timestamp) : null;
 
   return (
@@ -49,6 +49,16 @@ export default function Header({ latest, isCharging, isDischarging, isOnline, is
               {isWsConnected ? 'WS LIVE' : isOnline ? 'ONLINE' : 'OFFLINE'}
             </span>
           </div>
+
+          {/* Settings button */}
+          <button
+            onClick={onOpenSettings}
+            className="zed-btn-neutral px-3 py-1 rounded text-xs font-mono text-neutral-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+            title="Battery & SOC Settings"
+          >
+            <span>⚙</span>
+            <span className="hidden sm:inline">Settings</span>
+          </button>
 
           {/* Refresh action */}
           <button

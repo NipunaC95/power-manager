@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTelemetry } from './hooks/useTelemetry.js';
 import { parseCells } from './utils/format.js';
+import { loadSettings, calculateSoc } from './utils/soc.js';
 
 import Header from './components/Header.jsx';
 import Metric from './components/Metric.jsx';
@@ -8,11 +9,14 @@ import Chart from './components/Chart.jsx';
 import CellGrid from './components/CellGrid.jsx';
 import CellDetail from './components/CellDetail.jsx';
 import SwitchIndicator from './components/SwitchIndicator.jsx';
+import Settings from './components/Settings.jsx';
 
 export default function App() {
   const { latest, history, isWsConnected } = useTelemetry();
   const [selectedCell, setSelectedCell] = useState(null);
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState(loadSettings);
 
   const selectedHistoryItem =
     selectedHistoryIndex != null && history[selectedHistoryIndex]
@@ -33,13 +37,16 @@ export default function App() {
   const cellDiffMv = minV != null ? ((maxV - minV) * 1000).toFixed(0) : '—';
 
   const current = val('current');
-  const soc = val('soc');
+  const displaySoc = calculateSoc(latest, settings);
   const isCharging = current != null && Number(current) > 0.5;
   const isDischarging = current != null && Number(current) < -0.5;
   const isOnline = !!latest;
 
   const runtime = (() => {
-    const cap = val('capacity_remaining');
+    const rawCap = val('capacity_remaining');
+    const cap = (rawCap && Number(rawCap) > 0)
+      ? Number(rawCap)
+      : (displaySoc / 100) * (settings.batteryCapacityAh || 100);
     if (cap == null || current == null || Number(current) >= 0) return null;
     const h = Number(cap) / Math.abs(Number(current));
     if (h > 24) return `${(h / 24).toFixed(1)}d`;
@@ -56,142 +63,182 @@ export default function App() {
           isDischarging={isDischarging}
           isOnline={isOnline}
           isWsConnected={isWsConnected}
+          onOpenSettings={() => setIsSettingsOpen(!isSettingsOpen)}
         />
 
-        {/* Section 1: Core Pack Telemetry */}
-        <section className="mb-6">
-          <div className="flex items-center justify-between pb-2 mb-3 border-b border-dashed border-white/10">
-            <h2 className="font-serif text-sm text-neutral-300 font-normal">
-              Pack Overview
-            </h2>
-            <span className="font-mono text-[10px] text-neutral-500 uppercase tracking-wider">
-              Realtime Bus
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Metric
-              label="State of Charge"
-              value={soc ?? '—'}
-              unit="%"
-              large
-              color={soc != null && soc < 20 ? 'text-[#BF3C27]' : soc != null && soc > 80 ? 'text-emerald-400' : 'text-white'}
-              sub={soc != null && soc > 90 ? 'Battery full capacity' : null}
-            />
-            <Metric
-              label="Voltage"
-              value={fmt('total_voltage', 2)}
-              unit="V"
-              large
-              color="text-white"
-            />
-            <Metric
-              label="Net Current"
-              value={fmt('current', 2)}
-              unit="A"
-              large
-              color={isCharging ? 'text-emerald-400' : isDischarging ? 'text-[#e5933d]' : 'text-neutral-300'}
-            />
-            <Metric
-              label="Power"
-              value={fmt('power', 0)}
-              unit="W"
-              large
-              color="text-[#e5933d]"
-            />
-          </div>
-        </section>
-
-        {/* Section 2: Diagnostics & Thermal */}
-        <section className="mb-6">
-          <div className="flex items-center justify-between pb-2 mb-3 border-b border-dashed border-white/10">
-            <h2 className="font-serif text-sm text-neutral-300 font-normal">
-              Diagnostics & Thermals
-            </h2>
-            <span className="font-mono text-[10px] text-neutral-500 uppercase tracking-wider">
-              Health Monitor
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            <Metric
-              label="Cell Delta"
-              value={cellDiffMv}
-              unit="mV"
-              color={cellDiffMv !== '—' && Number(cellDiffMv) > 30 ? 'text-[#BF3C27]' : 'text-neutral-200'}
-              sub={cellDiffMv !== '—' && Number(cellDiffMv) <= 15 ? 'Excellent balance' : null}
-            />
-            <Metric label="MOSFET Temp" value={fmt('temp_mos')} unit="°C" />
-            <Metric label="Probe Temp 1" value={fmt('temp_battery_1')} unit="°C" />
-            <Metric label="Probe Temp 2" value={fmt('temp_battery_2')} unit="°C" />
-            <Metric
-              label="Capacity Left"
-              value={fmt('capacity_remaining', 1)}
-              unit="Ah"
-              sub={runtime ? `~${runtime} remaining` : null}
-            />
-          </div>
-        </section>
-
-        {/* Section 3: Cell Level Matrix or Detail View */}
-        {selectedCell != null ? (
-          <CellDetail
-            cellIndex={selectedCell}
-            cells={cells}
-            history={history}
-            onCellChange={setSelectedCell}
-            onBack={() => setSelectedCell(null)}
+        {/* Settings View */}
+        {isSettingsOpen ? (
+          <Settings
+            settings={settings}
+            onSave={(newSettings) => {
+              setSettings(newSettings);
+              setIsSettingsOpen(false);
+            }}
+            onBack={() => setIsSettingsOpen(false)}
+            latest={latest}
           />
         ) : (
-          <CellGrid cells={cells} minV={minV} maxV={maxV} onCellClick={setSelectedCell} />
-        )}
+          <>
+            {/* Section 1: Core Pack Telemetry */}
+            <section className="mb-6">
+              <div className="flex items-center justify-between pb-2 mb-3 border-b border-dashed border-white/10">
+                <h2 className="font-serif text-sm text-neutral-300 font-normal">
+                  Pack Overview
+                </h2>
+                <span className="font-mono text-[10px] text-neutral-500 uppercase tracking-wider">
+                  Realtime Bus
+                </span>
+              </div>
 
-        {/* Section 4: Telemetry History Charts */}
-        {history.length > 1 && (
-          <section className="mb-6">
-            <div className="flex items-center justify-between pb-2 mb-3 border-b border-dashed border-white/10">
-              <h2 className="font-serif text-sm text-neutral-300 font-normal">
-                Temporal Telemetry
-              </h2>
-              <span className="font-mono text-[10px] text-neutral-500 uppercase tracking-wider">
-                Cloudflare D1 Log
-              </span>
-            </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Metric
+                  label="State of Charge"
+                  value={displaySoc ?? '—'}
+                  unit="%"
+                  large
+                  color={displaySoc != null && displaySoc < 20 ? 'text-[#BF3C27]' : displaySoc != null && displaySoc > 80 ? 'text-emerald-400' : 'text-white'}
+                  sub={settings.enableManualSoc ? 'Manual override applied' : (displaySoc != null && displaySoc > 90 ? 'Battery full capacity' : null)}
+                />
+                <Metric
+                  label="Pack Voltage"
+                  value={fmt('total_voltage', 2)}
+                  unit="V"
+                  large
+                  color="text-white"
+                />
+                <Metric
+                  label="Net Current"
+                  value={fmt('current', 2)}
+                  unit="A"
+                  large
+                  color={isCharging ? 'text-emerald-400' : isDischarging ? 'text-[#e5933d]' : 'text-neutral-300'}
+                />
+                <Metric
+                  label="Active Power"
+                  value={fmt('power', 0)}
+                  unit="W"
+                  large
+                  color="text-[#e5933d]"
+                />
+              </div>
+            </section>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Chart
-                title="Voltage History"
-                data={history}
-                getValue={(d) => d.total_voltage}
-                unit="V"
-                color="#61afef"
-                fillColor="rgba(97, 175, 239, 0.06)"
-                decimals={2}
-                selectedIndex={selectedHistoryIndex}
-                onSelectIndex={setSelectedHistoryIndex}
-                powerValue={selectedPower}
+            {/* Section 2: Diagnostics & Thermal */}
+            <section className="mb-6">
+              <div className="flex items-center justify-between pb-2 mb-3 border-b border-dashed border-white/10">
+                <h2 className="font-serif text-sm text-neutral-300 font-normal">
+                  Diagnostics &amp; Thermals
+                </h2>
+                <span className="font-mono text-[10px] text-neutral-500 uppercase tracking-wider">
+                  Health Monitor
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                <Metric
+                  label="Cell Delta"
+                  value={cellDiffMv}
+                  unit="mV"
+                  color={cellDiffMv !== '—' && Number(cellDiffMv) > 30 ? 'text-[#BF3C27]' : 'text-neutral-200'}
+                  sub={cellDiffMv !== '—' && Number(cellDiffMv) <= 15 ? 'Excellent balance' : null}
+                />
+                <Metric label="MOSFET Temp" value={fmt('temp_mos')} unit="°C" />
+                <Metric label="Probe Temp 1" value={fmt('temp_battery_1')} unit="°C" />
+                <Metric label="Probe Temp 2" value={fmt('temp_battery_2')} unit="°C" />
+                <Metric
+                  label="Capacity Left"
+                  value={fmt('capacity_remaining', 1)}
+                  unit="Ah"
+                  sub={runtime ? `~${runtime} remaining` : null}
+                />
+              </div>
+            </section>
+
+            {/* Section 3: Cell Level Matrix or Detail View */}
+            {selectedCell != null ? (
+              <CellDetail
+                cellIndex={selectedCell}
+                cells={cells}
+                history={history}
+                onCellChange={setSelectedCell}
+                onBack={() => setSelectedCell(null)}
               />
-              <Chart
-                title="Power History"
-                data={history}
-                getValue={(d) => d.total_voltage * d.current}
-                unit="W"
-                color="#e5933d"
-                fillColor="rgba(229, 147, 61, 0.06)"
-                decimals={0}
-                selectedIndex={selectedHistoryIndex}
-                onSelectIndex={setSelectedHistoryIndex}
-                powerValue={selectedPower}
-              />
-            </div>
-          </section>
-        )}
+            ) : (
+              <CellGrid cells={cells} minV={minV} maxV={maxV} onCellClick={setSelectedCell} />
+            )}
 
-        {/* Section 5: Switches / FET states */}
-        <div className="flex flex-wrap items-center gap-3 pt-2">
-          <SwitchIndicator label="Charge FET" enabled={val('charging_enabled') === 1} />
-          <SwitchIndicator label="Discharge FET" enabled={val('discharging_enabled') === 1} />
-        </div>
+            {/* Section 4: Telemetry History Charts (SOC, Voltage, Power) */}
+            {history.length > 1 && (
+              <section className="mb-6">
+                <div className="flex items-center justify-between pb-2 mb-3 border-b border-dashed border-white/10">
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-serif text-sm text-neutral-300 font-normal">
+                      Temporal Telemetry
+                    </h2>
+                    {settings.enableManualSoc && (
+                      <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        SOC Override Active
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-mono text-[10px] text-neutral-500 uppercase tracking-wider">
+                    Cloudflare D1 Log
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Chart 1: State of Charge (SOC) */}
+                  <Chart
+                    title="SOC History"
+                    data={history}
+                    getValue={(d) => calculateSoc(d, settings)}
+                    unit="%"
+                    color="#34d399"
+                    fillColor="rgba(52, 211, 153, 0.06)"
+                    decimals={0}
+                    selectedIndex={selectedHistoryIndex}
+                    onSelectIndex={setSelectedHistoryIndex}
+                    powerValue={selectedPower}
+                  />
+
+                  {/* Chart 2: Pack Voltage */}
+                  <Chart
+                    title="Voltage History"
+                    data={history}
+                    getValue={(d) => d.total_voltage}
+                    unit="V"
+                    color="#61afef"
+                    fillColor="rgba(97, 175, 239, 0.06)"
+                    decimals={2}
+                    selectedIndex={selectedHistoryIndex}
+                    onSelectIndex={setSelectedHistoryIndex}
+                    powerValue={selectedPower}
+                  />
+
+                  {/* Chart 3: Active Power */}
+                  <Chart
+                    title="Power History"
+                    data={history}
+                    getValue={(d) => d.total_voltage * d.current}
+                    unit="W"
+                    color="#e5933d"
+                    fillColor="rgba(229, 147, 61, 0.06)"
+                    decimals={0}
+                    selectedIndex={selectedHistoryIndex}
+                    onSelectIndex={setSelectedHistoryIndex}
+                    powerValue={selectedPower}
+                  />
+                </div>
+              </section>
+            )}
+
+            {/* Section 5: Switches / FET states */}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <SwitchIndicator label="Charge FET" enabled={val('charging_enabled') === 1} />
+              <SwitchIndicator label="Discharge FET" enabled={val('discharging_enabled') === 1} />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Footer */}
