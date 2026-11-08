@@ -9,11 +9,11 @@
 #include <ArduinoJson.h>
 
 // ---------------------- Configuration ----------------------
-const char* WIFI_SSID     = WIFI_SSID_STR;
-const char* WIFI_PASSWORD = WIFI_PASSWORD_STR;
+const char* WIFI_SSID     = "SLT-Fiber-2.4G-9240";
+const char* WIFI_PASSWORD = "9d80e972e!";
 
-const char* CLOUDFLARE_URL = CLOUDFLARE_URL_STR;
-const char* API_KEY        = API_KEY_STR; // Updated API key from .env
+const char* CLOUDFLARE_URL = "https://jkbms-cloud.vcode-fiverr.workers.dev/api/telemetry";
+const char* API_KEY        = "5fedefec-82d6-4d92-b316-4d92c8704426"; // Updated API key from .env
 
 
 
