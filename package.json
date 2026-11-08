@@ -8,6 +8,6 @@
     "deploy:ingest": "cd workers/ingest && wrangler deploy",
     "deploy:dashboard": "npm run build:frontend && cd workers/dashboard && wrangler deploy",
     "deploy": "npm run deploy:ingest && npm run deploy:dashboard",
-    "db:init": "wrangler d1 execute jkbms-db --remote --file=./schema.sql"
+    "db:init": "cd workers/ingest && wrangler d1 execute jkbms-db --remote --file=../../schema.sql"
   }
 }
