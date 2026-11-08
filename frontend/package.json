@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "esbuild src/main.jsx --bundle --outfile=../public/bundle.js --watch",
-    "start": "npx serve ../public"
+    "start": "npx serve ../public",
     "build": "node build.js"
   },
   "dependencies": {
@@ -15,4 +15,3 @@
     "esbuild": "^0.19.0"
   }
 }
-
