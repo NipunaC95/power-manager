@@ -4,7 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "cd frontend && npm install --silent && node ../scripts/dev.js",
-    "deploy": "cd frontend && npm install --silent && node build.js && cd .. && wrangler deploy",
+    "build:frontend": "cd frontend && npm install --silent && node build.js",
+    "deploy:ingest": "cd workers/ingest && wrangler deploy",
+    "deploy:dashboard": "npm run build:frontend && cd workers/dashboard && wrangler deploy",
+    "deploy": "npm run deploy:ingest && npm run deploy:dashboard",
     "db:init": "wrangler d1 execute jkbms-db --remote --file=./schema.sql"
   }
 }

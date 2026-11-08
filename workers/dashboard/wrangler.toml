@@ -1,0 +1,14 @@
+name = "jkbms-dashboard"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# Cloudflare D1 Database binding (same database)
+[[d1_databases]]
+binding = "DB"
+database_name = "jkbms-db"
+database_id = "5d7cd553-9808-4cf5-9532-5c55191aa531"
+
+# Static assets for Cloudflare Workers
+[assets]
+directory = "../../public"
+binding = "ASSETS"
