@@ -11,3 +11,4 @@
     "db:init": "npx wrangler d1 execute jkbms-db --file=./schema.sql"
   }
 }
+
