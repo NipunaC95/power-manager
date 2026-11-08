@@ -2,7 +2,8 @@
  * Local dev server for JK-BMS React frontend.
  *
  * - Serves static files from public/ (your React app)
- * - Proxies HTTP /api/* and WebSocket /api/ws requests to the LIVE Cloudflare Worker
+ * - Proxies GET /api/* and WebSocket /api/ws requests to the Dashboard Worker
+ * - Proxies POST /api/telemetry to the Ingest Worker
  * - esbuild watches for source changes and rebuilds bundle.js automatically
  *
  * Usage: npm run dev
@@ -13,15 +14,12 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 
-// ── Config ──────────────────────────────────────────────────
-// Defaults to the dashboard worker
+// ── Upstream Worker URLs ────────────────────────────────────
 const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://jkbms-dashboard.vcode-fiverr.workers.dev';
-const INGEST_URL = 'https://jkbms-cloud.vcode-fiverr.workers.dev';
+const INGEST_URL = process.env.INGEST_URL || 'https://jkbms-cloud.vcode-fiverr.workers.dev';
 const PUBLIC_DIR = path.resolve(__dirname, '..', 'public');
 const FRONTEND_DIR = path.resolve(__dirname, '..', 'frontend');
 const PORT = 3000;
-
-let activeWorkerUrl = DASHBOARD_URL;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -55,8 +53,8 @@ esbuild.stderr.on('data', (d) => {
 });
 
 // Helper: proxy an HTTP request to an upstream worker
-function proxyRequest(targetUrl, req, res, onError) {
-  const target = new URL(req.url, targetUrl);
+function proxyRequest(targetBaseUrl, req, res) {
+  const target = new URL(req.url, targetBaseUrl);
   const opts = {
     hostname: target.hostname,
     port: 443,
@@ -71,10 +69,6 @@ function proxyRequest(targetUrl, req, res, onError) {
   delete opts.headers['transfer-encoding'];
 
   const proxy = https.request(opts, (upstream) => {
-    if ((upstream.statusCode === 404 || upstream.statusCode === 502) && onError) {
-      onError();
-      return;
-    }
     const h = { ...upstream.headers };
     h['access-control-allow-origin'] = '*';
     res.writeHead(upstream.statusCode, h);
@@ -82,9 +76,8 @@ function proxyRequest(targetUrl, req, res, onError) {
   });
 
   proxy.on('error', (err) => {
-    if (onError) {
-      onError(err);
-    } else {
+    console.error(`\x1b[31m[proxy error]\x1b[0m ${err.message}`);
+    if (!res.headersSent) {
       res.writeHead(502, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Proxy error: ' + err.message }));
     }
@@ -93,21 +86,17 @@ function proxyRequest(targetUrl, req, res, onError) {
   req.pipe(proxy);
 }
 
-// ── 2) Local HTTP server with smart proxy ───────────────────
+// ── 2) Local HTTP Server ────────────────────────────────────
 const server = http.createServer((req, res) => {
+  // Route /api/* requests to the correct upstream worker:
   if (req.url.startsWith('/api/')) {
-    proxyRequest(activeWorkerUrl, req, res, () => {
-      if (activeWorkerUrl !== INGEST_URL) {
-        activeWorkerUrl = INGEST_URL;
-        proxyRequest(INGEST_URL, req, res, (err) => {
-          res.writeHead(502, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: err ? err.message : 'Upstream unavailable' }));
-        });
-      } else {
-        res.writeHead(502, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Upstream unavailable' }));
-      }
-    });
+    // POST /api/telemetry -> Ingestion Worker
+    if (req.method === 'POST' && req.url.startsWith('/api/telemetry')) {
+      proxyRequest(INGEST_URL, req, res);
+      return;
+    }
+    // All read/GET queries -> Dashboard Worker
+    proxyRequest(DASHBOARD_URL, req, res);
     return;
   }
 
@@ -135,7 +124,7 @@ const server = http.createServer((req, res) => {
 // ── 3) WebSocket Upgrade Proxy ──────────────────────────────
 server.on('upgrade', (req, socket, head) => {
   if (req.url.startsWith('/api/ws') || req.url.startsWith('/ws')) {
-    const target = new URL(req.url, activeWorkerUrl);
+    const target = new URL(req.url, DASHBOARD_URL);
     const upstreamReq = https.request({
       hostname: target.hostname,
       port: 443,
@@ -179,11 +168,12 @@ server.listen(PORT, () => {
   console.log('');
   console.log(`\x1b[33m⚡ JK-BMS Dev Server\x1b[0m`);
   console.log(`\x1b[33m   App:        http://localhost:${PORT}\x1b[0m`);
-  console.log(`\x1b[33m   API Proxy:  ${activeWorkerUrl}\x1b[0m`);
+  console.log(`\x1b[33m   Dashboard:  ${DASHBOARD_URL}\x1b[0m`);
+  console.log(`\x1b[33m   Ingestion:  ${INGEST_URL}\x1b[0m`);
   console.log(`\x1b[33m   WebSocket:  ws://localhost:${PORT}/api/ws\x1b[0m`);
   console.log('');
-  console.log('   Edit files in frontend/src/ — bundle rebuilds automatically.');
-  console.log('   Refresh browser to see changes.\n');
+  console.log('   Live D1 data connected. Edit files in frontend/src/ to rebuild.');
+  console.log('');
 });
 
 // ── Cleanup ─────────────────────────────────────────────────
