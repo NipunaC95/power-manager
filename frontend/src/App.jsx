@@ -37,52 +37,152 @@ export default function App() {
   })();
 
   return (
-    <div className="max-w-5xl mx-auto">
-      <Header latest={latest} isCharging={isCharging} isDischarging={isDischarging} isOnline={isOnline} />
+    <div className="max-w-5xl mx-auto bg-[#18181b]/95 border-x border-white/10 min-h-screen px-4 sm:px-8 py-6 flex flex-col justify-between shadow-2xl">
+      <div>
+        <Header latest={latest} isCharging={isCharging} isDischarging={isDischarging} isOnline={isOnline} />
 
-      {/* Primary metrics */}
-      <div className="grid grid-cols-4 gap-3 mb-3">
-        <Metric label="SOC" value={soc ?? '—'} unit="%" large
-          color={soc != null && soc < 20 ? 'text-red-400' : soc != null && soc > 80 ? 'text-emerald-400' : 'text-white'} />
-        <Metric label="Voltage" value={fmt('total_voltage', 2)} unit="V" large />
-        <Metric label="Current" value={fmt('current', 2)} unit="A" large
-          color={isCharging ? 'text-emerald-400' : isDischarging ? 'text-amber-400' : 'text-white'} />
-        <Metric label="Power" value={fmt('power', 0)} unit="W" large />
-      </div>
+        {/* Section 1: Core Pack Telemetry */}
+        <section className="mb-6">
+          <div className="flex items-center justify-between pb-2 mb-3 border-b border-dashed border-white/10">
+            <h2 className="font-serif text-sm text-neutral-300 font-normal">
+              Pack Overview
+            </h2>
+            <span className="font-mono text-[10px] text-neutral-500 uppercase tracking-wider">
+              Realtime Bus
+            </span>
+          </div>
 
-      {/* Secondary metrics */}
-      <div className="grid grid-cols-5 gap-3 mb-6">
-        <Metric label="Cell Δ" value={cellDiffMv} unit="mV"
-          color={cellDiffMv !== '—' && Number(cellDiffMv) > 30 ? 'text-red-400' : 'text-slate-200'} />
-        <Metric label="MOS Temp" value={fmt('temp_mos')} unit="°C" />
-        <Metric label="Bat Temp 1" value={fmt('temp_battery_1')} unit="°C" />
-        <Metric label="Bat Temp 2" value={fmt('temp_battery_2')} unit="°C" />
-        <Metric label="Capacity" value={fmt('capacity_remaining', 1)} unit="Ah" sub={runtime ? `~${runtime} left` : null} />
-      </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Metric
+              label="State of Charge"
+              value={soc ?? '—'}
+              unit="%"
+              large
+              color={soc != null && soc < 20 ? 'text-[#BF3C27]' : soc != null && soc > 80 ? 'text-emerald-400' : 'text-white'}
+              sub={soc != null && soc > 90 ? 'Battery full capacity' : null}
+            />
+            <Metric
+              label="Pack Voltage"
+              value={fmt('total_voltage', 2)}
+              unit="V"
+              large
+              color="text-white"
+            />
+            <Metric
+              label="Net Current"
+              value={fmt('current', 2)}
+              unit="A"
+              large
+              color={isCharging ? 'text-emerald-400' : isDischarging ? 'text-[#e5933d]' : 'text-neutral-300'}
+            />
+            <Metric
+              label="Active Power"
+              value={fmt('power', 0)}
+              unit="W"
+              large
+              color="text-[#e5933d]"
+            />
+          </div>
+        </section>
 
-      {/* Cell detail or grid */}
-      {selectedCell != null ? (
-        <CellDetail cellIndex={selectedCell} cells={cells} history={history}
-          onCellChange={setSelectedCell} onBack={() => setSelectedCell(null)} />
-      ) : (
-        <CellGrid cells={cells} minV={minV} maxV={maxV} onCellClick={setSelectedCell} />
-      )}
+        {/* Section 2: Diagnostics & Thermal */}
+        <section className="mb-6">
+          <div className="flex items-center justify-between pb-2 mb-3 border-b border-dashed border-white/10">
+            <h2 className="font-serif text-sm text-neutral-300 font-normal">
+              Diagnostics & Thermals
+            </h2>
+            <span className="font-mono text-[10px] text-neutral-500 uppercase tracking-wider">
+              Health Monitor
+            </span>
+          </div>
 
-      {/* Switches */}
-      <div className="flex gap-3 mb-6">
-        <SwitchIndicator label="Charge" enabled={val('charging_enabled') === 1} />
-        <SwitchIndicator label="Discharge" enabled={val('discharging_enabled') === 1} />
-      </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            <Metric
+              label="Cell Delta"
+              value={cellDiffMv}
+              unit="mV"
+              color={cellDiffMv !== '—' && Number(cellDiffMv) > 30 ? 'text-[#BF3C27]' : 'text-neutral-200'}
+              sub={cellDiffMv !== '—' && Number(cellDiffMv) <= 15 ? 'Excellent balance' : null}
+            />
+            <Metric label="MOSFET Temp" value={fmt('temp_mos')} unit="°C" />
+            <Metric label="Probe Temp 1" value={fmt('temp_battery_1')} unit="°C" />
+            <Metric label="Probe Temp 2" value={fmt('temp_battery_2')} unit="°C" />
+            <Metric
+              label="Capacity Left"
+              value={fmt('capacity_remaining', 1)}
+              unit="Ah"
+              sub={runtime ? `~${runtime} remaining` : null}
+            />
+          </div>
+        </section>
 
-      {/* Charts */}
-      {history.length > 1 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Chart title="Voltage" data={history} getValue={(d) => d.total_voltage}
-            unit="V" color="#60a5fa" fillColor="rgba(96,165,250,0.08)" decimals={2} />
-          <Chart title="Power" data={history} getValue={(d) => d.total_voltage * d.current}
-            unit="W" color="#fbbf24" fillColor="rgba(251,191,36,0.08)" decimals={0} />
+        {/* Section 3: Cell Level Matrix or Detail View */}
+        {selectedCell != null ? (
+          <CellDetail
+            cellIndex={selectedCell}
+            cells={cells}
+            history={history}
+            onCellChange={setSelectedCell}
+            onBack={() => setSelectedCell(null)}
+          />
+        ) : (
+          <CellGrid cells={cells} minV={minV} maxV={maxV} onCellClick={setSelectedCell} />
+        )}
+
+        {/* Section 4: Telemetry History Charts */}
+        {history.length > 1 && (
+          <section className="mb-6">
+            <div className="flex items-center justify-between pb-2 mb-3 border-b border-dashed border-white/10">
+              <h2 className="font-serif text-sm text-neutral-300 font-normal">
+                Temporal Telemetry
+              </h2>
+              <span className="font-mono text-[10px] text-neutral-500 uppercase tracking-wider">
+                Cloudflare D1 Log
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Chart
+                title="Pack Voltage History"
+                data={history}
+                getValue={(d) => d.total_voltage}
+                unit="V"
+                color="#61afef"
+                fillColor="rgba(97, 175, 239, 0.06)"
+                decimals={2}
+              />
+              <Chart
+                title="Active Power History"
+                data={history}
+                getValue={(d) => d.total_voltage * d.current}
+                unit="W"
+                color="#e5933d"
+                fillColor="rgba(229, 147, 61, 0.06)"
+                decimals={0}
+              />
+            </div>
+          </section>
+        )}
+
+        {/* Section 5: Switches / FET states */}
+        <div className="flex flex-wrap items-center gap-3 pt-2">
+          <SwitchIndicator label="Charge FET" enabled={val('charging_enabled') === 1} />
+          <SwitchIndicator label="Discharge FET" enabled={val('discharging_enabled') === 1} />
         </div>
-      )}
+      </div>
+
+      {/* Footer */}
+      <footer className="pt-8 mt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-neutral-500 font-mono text-[11px]">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#BF3C27]" />
+          <span>JK-BMS Gateway</span>
+          <span className="text-neutral-700">/</span>
+          <span>ESP32 NimBLE</span>
+        </div>
+        <div>
+          <span>Engineered with Cloudflare Workers &amp; D1</span>
+        </div>
+      </footer>
     </div>
   );
 }

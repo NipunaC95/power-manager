@@ -1,14 +1,40 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JK-BMS Live Telemetry Monitor</title>
+  <title>JK-BMS — Telemetry</title>
+  
+  <!-- Fonts matching Zed.dev -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: {
+            serif: ['"IBM Plex Serif"', 'Georgia', 'serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          },
+          colors: {
+            zed: {
+              bg: '#18181b',
+              canvas: '#121214',
+              surface: '#1e1e22',
+              card: '#222226',
+              border: 'rgba(255, 255, 255, 0.08)',
+              rust: '#BF3C27',
+              'rust-hover': '#a63422',
+              blue: '#2e6cf6',
+              amber: '#e5933d',
+              green: '#2ea069',
+            }
+          },
           gridTemplateColumns: {
             '16': 'repeat(16, minmax(0, 1fr))',
           }
@@ -16,8 +42,33 @@
       }
     }
   </script>
+  <style>
+    body {
+      background-color: #151518;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .zed-btn-rust {
+      background-color: #BF3C27;
+      border: 1px solid rgba(220, 70, 45, 0.6);
+      box-shadow: hsl(8, 66%, 28%) 0 -2px 0 0 inset, rgba(0,0,0,0.3) 0 1px 2px 0;
+    }
+    .zed-btn-rust:hover {
+      background-color: #d1422b;
+      box-shadow: none;
+    }
+    .zed-btn-neutral {
+      background-color: #242428;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: hsl(0, 0%, 12%) 0 -2px 0 0 inset, rgba(0,0,0,0.2) 0 1px 2px 0;
+    }
+    .zed-btn-neutral:hover {
+      background-color: #2b2b30;
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen p-3 md:p-6 font-sans">
+<body class="bg-[#151518] text-neutral-200 min-h-screen font-sans selection:bg-[#BF3C27]/30 selection:text-white">
   <div id="root"></div>
   <script src="bundle.js"></script>
 </body>

@@ -9,8 +9,8 @@ export default function CellDetail({ cellIndex, cells, history, onCellChange, on
 
   const voltage = cells[cellIndex] != null ? cells[cellIndex] : null;
   const num = cellIndex + 1;
+  const paddedNum = String(num).padStart(2, '0');
 
-  // Try fetching from /api/cells (works after deploying new schema)
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -28,7 +28,7 @@ export default function CellDetail({ cellIndex, cells, history, onCellChange, on
     return () => { cancelled = true; clearInterval(interval); };
   }, [cellIndex]);
 
-  // Fallback: extract this cell's voltage from the main pack history
+  // Fallback to pack history if needed
   const historyData = apiHistory.length > 1
     ? apiHistory
     : (history || [])
@@ -45,65 +45,84 @@ export default function CellDetail({ cellIndex, cells, history, onCellChange, on
   const avg = voltages.length ? voltages.reduce((a, b) => a + b, 0) / voltages.length : null;
 
   return (
-    <div className="mb-6">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-3">
-        <button onClick={onBack}
-          className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded border border-slate-700 hover:border-slate-500 transition-colors">
-          ← Back
-        </button>
-        <h2 className="text-sm font-medium text-white">Cell {num}</h2>
+    <section className="mb-6">
+      {/* Top breadcrumb navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-dashed border-white/10">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="zed-btn-neutral px-2.5 py-1 rounded text-xs font-mono text-neutral-300 hover:text-white flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>←</span>
+            <span>Grid</span>
+          </button>
+          <div className="h-4 w-[1px] bg-white/10" />
+          <h2 className="font-serif text-lg text-white font-normal flex items-center gap-2">
+            <span>Cell {paddedNum}</span>
+            <span className="italic text-neutral-400 font-serif font-light text-sm">Diagnostic</span>
+          </h2>
+        </div>
+
         {voltage != null && (
-          <span className="text-sm font-semibold tabular-nums text-blue-400">{voltage.toFixed(3)} V</span>
+          <div className="font-mono text-sm font-medium text-neutral-200 flex items-center gap-1.5 bg-neutral-900 px-2.5 py-1 rounded border border-white/10">
+            <span className="text-neutral-500 text-xs">CURRENT:</span>
+            <span className="text-white font-semibold">{voltage.toFixed(3)}</span>
+            <span className="text-neutral-500 text-xs">V</span>
+          </div>
         )}
       </div>
 
-      {/* Stats */}
-      {voltages.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          <Metric label="Min" value={min.toFixed(3)} unit="V" color="text-red-400" />
-          <Metric label="Avg" value={avg.toFixed(3)} unit="V" />
-          <Metric label="Max" value={max.toFixed(3)} unit="V" color="text-emerald-400" />
-        </div>
-      )}
-
-      {/* Chart */}
-      {loading && apiHistory.length === 0 && historyData.length < 2 ? (
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-4 text-xs text-slate-500">
-          Loading cell history…
-        </div>
-      ) : historyData.length > 1 ? (
-        <Chart
-          title={`Cell ${num} Voltage`}
-          data={historyData}
-          getValue={(d) => d.voltage}
-          unit="V"
-          color="#818cf8"
-          fillColor="rgba(129,140,248,0.08)"
-          decimals={3}
-        />
-      ) : (
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-4 text-xs text-slate-500">
-          Not enough history data yet.
-        </div>
-      )}
-
-      {/* Cell nav */}
+      {/* Quick Cell Selector Tabs */}
       {cells.length > 1 && (
-        <div className="flex items-center gap-1.5 mt-3">
-          <span className="text-[10px] text-slate-500 mr-1">Cell:</span>
+        <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-4 scrollbar-none">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-neutral-500 mr-1.5 shrink-0">
+            Channel:
+          </span>
           {cells.map((_, i) => (
-            <button key={i} onClick={() => onCellChange(i)}
-              className={`text-[10px] w-6 h-6 rounded ${
+            <button
+              key={i}
+              onClick={() => onCellChange(i)}
+              className={`font-mono text-[11px] px-2 py-1 rounded-sm shrink-0 transition-all cursor-pointer ${
                 i === cellIndex
-                  ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
-                  : 'bg-slate-800 text-slate-400 border border-transparent hover:border-slate-600'
-              }`}>
-              {i + 1}
+                  ? 'zed-btn-rust text-white font-semibold'
+                  : 'zed-btn-neutral text-neutral-400 hover:text-neutral-200'
+              }`}
+            >
+              C{String(i + 1).padStart(2, '0')}
             </button>
           ))}
         </div>
       )}
-    </div>
+
+      {/* Metric summary for selected cell */}
+      {voltages.length > 0 && (
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <Metric label="Recorded Min" value={min.toFixed(3)} unit="V" color="text-rose-300" />
+          <Metric label="Running Avg" value={avg.toFixed(3)} unit="V" color="text-neutral-100" />
+          <Metric label="Recorded Max" value={max.toFixed(3)} unit="V" color="text-emerald-300" />
+        </div>
+      )}
+
+      {/* Cell History Chart */}
+      {loading && apiHistory.length === 0 && historyData.length < 2 ? (
+        <div className="bg-[#1b1b1f] border border-white/10 rounded-sm p-8 text-center font-mono text-xs text-neutral-500">
+          Syncing cell telemetry buffer…
+        </div>
+      ) : historyData.length > 1 ? (
+        <Chart
+          title={`Cell ${paddedNum} Voltage History`}
+          data={historyData}
+          getValue={(d) => d.voltage}
+          unit="V"
+          color="#BF3C27"
+          fillColor="rgba(191, 60, 39, 0.08)"
+          decimals={3}
+        />
+      ) : (
+        <div className="bg-[#1b1b1f] border border-white/10 rounded-sm p-8 text-center font-mono text-xs text-neutral-500">
+          Not enough historical records yet for Cell {paddedNum}.
+        </div>
+      )}
+    </section>
   );
 }

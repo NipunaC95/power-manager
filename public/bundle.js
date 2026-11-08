@@ -23654,38 +23654,27 @@
   var import_react2 = __toESM(require_react());
   function Header({ latest, isCharging, isDischarging, isOnline }) {
     const lastUpdate = latest?.timestamp ? timeAgo(latest.timestamp) : null;
-    return /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center justify-between mb-6" }, /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("h1", { className: "text-lg font-semibold text-white" }, "BMS Monitor"), /* @__PURE__ */ import_react2.default.createElement("p", { className: "text-xs text-slate-500 mt-0.5" }, isOnline ? `Updated ${lastUpdate}` : "Connecting\u2026")), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ import_react2.default.createElement(
-      StatusBadge,
+    return /* @__PURE__ */ import_react2.default.createElement("header", { className: "border-b border-white/10 pb-5 mb-6" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4" }, /* @__PURE__ */ import_react2.default.createElement("div", null, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ import_react2.default.createElement("span", { className: "inline-flex items-center justify-center w-6 h-6 rounded bg-[#BF3C27] text-white font-mono text-xs font-bold shadow-sm" }, "Z"), /* @__PURE__ */ import_react2.default.createElement("h1", { className: "font-serif text-xl sm:text-2xl text-white font-normal tracking-tight" }, "JK-BMS ", /* @__PURE__ */ import_react2.default.createElement("span", { className: "italic text-neutral-400 font-serif font-light text-base sm:text-lg" }, "Telemetry"))), /* @__PURE__ */ import_react2.default.createElement("p", { className: "font-mono text-[11px] text-neutral-500 mt-1 flex items-center gap-2" }, /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-neutral-400" }, "Target:"), /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-neutral-300 bg-neutral-900 px-1.5 py-0.5 rounded border border-white/5" }, "507268D28101263"), /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-neutral-600" }, "/"), /* @__PURE__ */ import_react2.default.createElement("span", null, isOnline ? `Updated ${lastUpdate}` : "Awaiting stream\u2026"))), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center gap-2.5" }, /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono bg-neutral-900 border border-white/10" }, /* @__PURE__ */ import_react2.default.createElement("span", { className: `w-1.5 h-1.5 rounded-full ${isCharging ? "bg-emerald-400 animate-pulse" : isDischarging ? "bg-amber-400" : "bg-neutral-500"}` }), /* @__PURE__ */ import_react2.default.createElement("span", { className: "text-neutral-300" }, isCharging ? "CHARGING" : isDischarging ? "DISCHARGING" : "STANDBY")), /* @__PURE__ */ import_react2.default.createElement("div", { className: "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono bg-neutral-900 border border-white/10" }, /* @__PURE__ */ import_react2.default.createElement("span", { className: `w-1.5 h-1.5 rounded-full ${isOnline ? "bg-emerald-400" : "bg-rose-500"}` }), /* @__PURE__ */ import_react2.default.createElement("span", { className: isOnline ? "text-neutral-300" : "text-rose-400" }, isOnline ? "ONLINE" : "OFFLINE")), /* @__PURE__ */ import_react2.default.createElement(
+      "button",
       {
-        label: isCharging ? "Charging" : isDischarging ? "Discharging" : "Idle",
-        color: isCharging ? "green" : isDischarging ? "amber" : "slate"
-      }
-    ), /* @__PURE__ */ import_react2.default.createElement(
-      "span",
-      {
-        className: `w-2 h-2 rounded-full ${isOnline ? "bg-emerald-400" : "bg-slate-600"}`,
-        title: isOnline ? "Connected" : "Offline"
-      }
-    )));
-  }
-  function StatusBadge({ label, color }) {
-    const colors = {
-      green: "bg-emerald-500/10 text-emerald-400",
-      amber: "bg-amber-500/10 text-amber-400",
-      slate: "bg-slate-800 text-slate-400"
-    };
-    return /* @__PURE__ */ import_react2.default.createElement("span", { className: `text-[11px] font-medium px-2 py-0.5 rounded ${colors[color] || colors.slate}` }, label);
+        onClick: () => window.dispatchEvent(new Event("fetchNow")),
+        className: "zed-btn-neutral px-3 py-1 rounded text-xs font-mono text-neutral-300 transition-colors flex items-center gap-1.5 cursor-pointer",
+        title: "Force refresh"
+      },
+      /* @__PURE__ */ import_react2.default.createElement("span", null, "\u21BB"),
+      /* @__PURE__ */ import_react2.default.createElement("span", { className: "hidden sm:inline" }, "Sync")
+    ))));
   }
 
   // src/components/Metric.jsx
   var import_react3 = __toESM(require_react());
-  function Metric({ label, value, unit, large, color = "text-white", sub }) {
-    return /* @__PURE__ */ import_react3.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 px-3 py-2.5" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "text-[11px] text-slate-500 mb-1" }, label), /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex items-baseline gap-1" }, /* @__PURE__ */ import_react3.default.createElement("span", { className: `${large ? "text-2xl" : "text-lg"} font-semibold tabular-nums ${color}` }, value), /* @__PURE__ */ import_react3.default.createElement("span", { className: "text-xs text-slate-500" }, unit)), sub && /* @__PURE__ */ import_react3.default.createElement("div", { className: "text-[11px] text-slate-500 mt-0.5" }, sub));
+  function Metric({ label, value, unit, large, color = "text-neutral-100", sub }) {
+    return /* @__PURE__ */ import_react3.default.createElement("div", { className: "bg-[#1b1b1f] border border-white/10 rounded-sm p-3.5 flex flex-col justify-between hover:border-white/20 transition-colors group" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex items-center justify-between pb-2 mb-2 border-b border-dashed border-white/10" }, /* @__PURE__ */ import_react3.default.createElement("span", { className: "font-mono text-[10px] uppercase tracking-wider text-neutral-400 group-hover:text-neutral-300 transition-colors" }, label), /* @__PURE__ */ import_react3.default.createElement("span", { className: "font-mono text-[10px] text-neutral-500" }, "[", unit, "]")), /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex items-baseline gap-1.5 my-0.5" }, /* @__PURE__ */ import_react3.default.createElement("span", { className: `font-mono font-medium tabular-nums tracking-tight ${large ? "text-2xl sm:text-3xl" : "text-lg sm:text-xl"} ${color}` }, value), /* @__PURE__ */ import_react3.default.createElement("span", { className: "font-mono text-xs text-neutral-500" }, unit)), sub ? /* @__PURE__ */ import_react3.default.createElement("div", { className: "font-serif italic text-[11px] text-neutral-400 mt-1" }, sub) : /* @__PURE__ */ import_react3.default.createElement("div", { className: "h-4" }));
   }
 
   // src/components/Chart.jsx
   var import_react4 = __toESM(require_react());
-  function Chart({ title, data, getValue, unit, color, fillColor, decimals = 1 }) {
+  function Chart({ title, data, getValue, unit, color = "#3b82f6", fillColor = "rgba(59, 130, 246, 0.06)", decimals = 1 }) {
     const values = data.map(getValue).filter((v) => v != null && isFinite(v));
     if (values.length < 2)
       return null;
@@ -23698,28 +23687,30 @@
     const plotMax = max + padding;
     const range = plotMax - plotMin || 1;
     const latest = values[values.length - 1];
-    const W = 300;
-    const H = 80;
-    const PAD_T = 4;
+    const W = 320;
+    const H = 90;
+    const PAD_T = 6;
+    const PAD_B = 2;
     const plotW = W;
-    const plotH = H - PAD_T;
+    const plotH = H - PAD_T - PAD_B;
     const points = values.map((v, i) => ({
       x: i / (values.length - 1) * plotW,
       y: PAD_T + plotH - (v - plotMin) / range * plotH
     }));
-    const line = points.map((p) => `${p.x},${p.y}`).join(" ");
+    const line = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
     const fill = [
-      `${points[0].x},${PAD_T + plotH}`,
-      ...points.map((p) => `${p.x},${p.y}`),
-      `${points[points.length - 1].x},${PAD_T + plotH}`
+      `0,${PAD_T + plotH}`,
+      ...points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`),
+      `${plotW},${PAD_T + plotH}`
     ].join(" ");
-    const gridLines = [0.1, 0.5, 0.9].map((frac) => ({
+    const gridFractions = [0.15, 0.5, 0.85];
+    const gridLines = gridFractions.map((frac) => ({
       y: PAD_T + plotH - frac * plotH,
       label: (plotMin + frac * range).toFixed(decimals)
     }));
     const firstTs = formatTime(timestamps[0]);
     const lastTs = formatTime(timestamps[timestamps.length - 1]);
-    return /* @__PURE__ */ import_react4.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 p-3" }, /* @__PURE__ */ import_react4.default.createElement("div", { className: "flex items-baseline justify-between mb-2" }, /* @__PURE__ */ import_react4.default.createElement("div", { className: "flex items-baseline gap-2" }, /* @__PURE__ */ import_react4.default.createElement("h3", { className: "text-xs font-medium text-slate-400" }, title), /* @__PURE__ */ import_react4.default.createElement("span", { className: "text-lg font-semibold tabular-nums", style: { color } }, latest.toFixed(decimals)), /* @__PURE__ */ import_react4.default.createElement("span", { className: "text-[11px] text-slate-500" }, unit)), /* @__PURE__ */ import_react4.default.createElement("span", { className: "text-[10px] text-slate-600" }, min.toFixed(decimals), "\u2013", max.toFixed(decimals), " ", unit)), /* @__PURE__ */ import_react4.default.createElement("div", { className: "relative" }, /* @__PURE__ */ import_react4.default.createElement("div", { className: "absolute left-0 top-0 bottom-0 flex flex-col justify-between py-0.5 pointer-events-none" }, gridLines.slice().reverse().map((g, i) => /* @__PURE__ */ import_react4.default.createElement("span", { key: i, className: "text-[9px] text-slate-600 tabular-nums leading-none" }, g.label))), /* @__PURE__ */ import_react4.default.createElement("svg", { viewBox: `0 0 ${W} ${H}`, className: "w-full h-28 ml-6", preserveAspectRatio: "none" }, gridLines.map((g, i) => /* @__PURE__ */ import_react4.default.createElement(
+    return /* @__PURE__ */ import_react4.default.createElement("div", { className: "bg-[#1b1b1f] border border-white/10 rounded-sm p-4 flex flex-col justify-between hover:border-white/20 transition-colors" }, /* @__PURE__ */ import_react4.default.createElement("div", { className: "flex items-baseline justify-between pb-2 mb-3 border-b border-dashed border-white/10" }, /* @__PURE__ */ import_react4.default.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ import_react4.default.createElement("span", { className: "w-1.5 h-1.5 rounded-full", style: { backgroundColor: color } }), /* @__PURE__ */ import_react4.default.createElement("h3", { className: "font-serif text-sm text-neutral-100 font-normal" }, title)), /* @__PURE__ */ import_react4.default.createElement("div", { className: "flex items-baseline gap-1.5" }, /* @__PURE__ */ import_react4.default.createElement("span", { className: "font-mono text-base font-medium tabular-nums", style: { color } }, latest.toFixed(decimals)), /* @__PURE__ */ import_react4.default.createElement("span", { className: "font-mono text-[11px] text-neutral-500" }, unit))), /* @__PURE__ */ import_react4.default.createElement("div", { className: "relative my-1" }, /* @__PURE__ */ import_react4.default.createElement("div", { className: "absolute left-0 top-0 bottom-0 flex flex-col justify-between pointer-events-none py-1" }, gridLines.slice().reverse().map((g, i) => /* @__PURE__ */ import_react4.default.createElement("span", { key: i, className: "font-mono text-[9px] text-neutral-500 tabular-nums" }, g.label))), /* @__PURE__ */ import_react4.default.createElement("div", { className: "ml-8" }, /* @__PURE__ */ import_react4.default.createElement("svg", { viewBox: `0 0 ${W} ${H}`, className: "w-full h-28 overflow-visible", preserveAspectRatio: "none" }, gridLines.map((g, i) => /* @__PURE__ */ import_react4.default.createElement(
       "line",
       {
         key: i,
@@ -23727,8 +23718,8 @@
         y1: g.y,
         x2: W,
         y2: g.y,
-        stroke: "#1e293b",
-        strokeWidth: "0.5",
+        stroke: "rgba(255, 255, 255, 0.07)",
+        strokeDasharray: "2 3",
         vectorEffect: "non-scaling-stroke"
       }
     )), /* @__PURE__ */ import_react4.default.createElement("polygon", { points: fill, fill: fillColor }), /* @__PURE__ */ import_react4.default.createElement(
@@ -23738,10 +23729,11 @@
         fill: "none",
         stroke: color,
         strokeWidth: "1.5",
-        vectorEffect: "non-scaling-stroke",
-        strokeLinejoin: "round"
+        strokeLinejoin: "round",
+        strokeLinecap: "round",
+        vectorEffect: "non-scaling-stroke"
       }
-    ))), /* @__PURE__ */ import_react4.default.createElement("div", { className: "flex justify-between text-[9px] text-slate-600 mt-1 ml-6" }, /* @__PURE__ */ import_react4.default.createElement("span", null, firstTs), /* @__PURE__ */ import_react4.default.createElement("span", null, values.length, " readings"), /* @__PURE__ */ import_react4.default.createElement("span", null, lastTs)));
+    )))), /* @__PURE__ */ import_react4.default.createElement("div", { className: "flex justify-between items-center font-mono text-[10px] text-neutral-500 pt-2 border-t border-white/5 ml-8 mt-1" }, /* @__PURE__ */ import_react4.default.createElement("span", null, firstTs), /* @__PURE__ */ import_react4.default.createElement("span", { className: "text-neutral-600" }, "(", values.length, " records)"), /* @__PURE__ */ import_react4.default.createElement("span", null, lastTs)));
   }
 
   // src/components/CellGrid.jsx
@@ -23752,27 +23744,28 @@
   function CellTile({ index, voltage, min, max, count, onClick }) {
     const isMin = count > 1 && voltage === min;
     const isMax = count > 1 && voltage === max;
-    let bg = "bg-slate-800/50";
-    let text = "text-slate-300";
-    let border = "border-transparent";
+    const paddedIndex = String(index).padStart(2, "0");
+    let surface = "bg-[#1b1b1f] border-white/10 text-neutral-200 hover:bg-[#24242a] hover:border-white/25";
+    let badgeColor = "text-neutral-500";
+    let valColor = "text-neutral-200";
     if (isMin) {
-      bg = "bg-red-950/40";
-      text = "text-red-400";
-      border = "border-red-500/30";
-    }
-    if (isMax) {
-      bg = "bg-emerald-950/40";
-      text = "text-emerald-400";
-      border = "border-emerald-500/30";
+      surface = "bg-[#BF3C27]/15 border-[#BF3C27]/50 text-rose-200 hover:bg-[#BF3C27]/25";
+      badgeColor = "text-rose-300/80";
+      valColor = "text-rose-200 font-semibold";
+    } else if (isMax) {
+      surface = "bg-emerald-500/15 border-emerald-500/50 text-emerald-200 hover:bg-emerald-500/25";
+      badgeColor = "text-emerald-300/80";
+      valColor = "text-emerald-200 font-semibold";
     }
     return /* @__PURE__ */ import_react5.default.createElement(
       "button",
       {
         onClick,
-        className: `${bg} ${border} border rounded-md px-1.5 py-1.5 text-center cursor-pointer hover:border-slate-600 transition-colors`
+        className: `border rounded-sm p-2 text-left cursor-pointer transition-all flex flex-col justify-between group focus:outline-none focus:ring-1 focus:ring-white/30 ${surface}`,
+        title: `Cell ${index}: ${voltage.toFixed(3)} V (Click to view history)`
       },
-      /* @__PURE__ */ import_react5.default.createElement("div", { className: "text-[9px] text-slate-500 leading-none mb-0.5" }, "C", index),
-      /* @__PURE__ */ import_react5.default.createElement("div", { className: `text-[11px] font-mono font-medium leading-none ${text}` }, voltage.toFixed(3))
+      /* @__PURE__ */ import_react5.default.createElement("div", { className: "flex items-center justify-between w-full mb-1" }, /* @__PURE__ */ import_react5.default.createElement("span", { className: `font-mono text-[9px] uppercase tracking-wider ${badgeColor}` }, "C", paddedIndex), isMin && /* @__PURE__ */ import_react5.default.createElement("span", { className: "font-mono text-[8px] px-1 rounded bg-[#BF3C27]/30 text-rose-300" }, "MIN"), isMax && /* @__PURE__ */ import_react5.default.createElement("span", { className: "font-mono text-[8px] px-1 rounded bg-emerald-500/30 text-emerald-300" }, "MAX")),
+      /* @__PURE__ */ import_react5.default.createElement("div", { className: `font-mono text-xs tabular-nums ${valColor}` }, voltage.toFixed(3), /* @__PURE__ */ import_react5.default.createElement("span", { className: "text-[10px] text-neutral-500 ml-0.5" }, "V"))
     );
   }
 
@@ -23780,7 +23773,7 @@
   function CellGrid({ cells, minV, maxV, onCellClick }) {
     if (!cells.length)
       return null;
-    return /* @__PURE__ */ import_react6.default.createElement("div", { className: "mb-6" }, /* @__PURE__ */ import_react6.default.createElement("div", { className: "flex items-baseline justify-between mb-2" }, /* @__PURE__ */ import_react6.default.createElement("h2", { className: "text-xs font-medium text-slate-400 uppercase tracking-wide" }, "Cell Voltages"), /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-[11px] text-slate-500" }, minV.toFixed(3), "V min \xB7 ", maxV.toFixed(3), "V max")), /* @__PURE__ */ import_react6.default.createElement("div", { className: `grid gap-1.5 ${cells.length <= 8 ? "grid-cols-8" : "grid-cols-8 sm:grid-cols-16"}` }, cells.map((v, i) => /* @__PURE__ */ import_react6.default.createElement(
+    return /* @__PURE__ */ import_react6.default.createElement("section", { className: "mb-6" }, /* @__PURE__ */ import_react6.default.createElement("div", { className: "flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 pb-2 mb-3 border-b border-dashed border-white/10" }, /* @__PURE__ */ import_react6.default.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ import_react6.default.createElement("h2", { className: "font-serif text-base text-neutral-100 font-normal" }, "Cell Voltages"), /* @__PURE__ */ import_react6.default.createElement("span", { className: "font-mono text-[10px] text-neutral-400 bg-neutral-900 px-1.5 py-0.5 rounded border border-white/5" }, cells.length, " Series")), /* @__PURE__ */ import_react6.default.createElement("div", { className: "font-mono text-[11px] text-neutral-400 flex items-center gap-2" }, /* @__PURE__ */ import_react6.default.createElement("span", null, "Min: ", /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-rose-300 font-semibold" }, minV?.toFixed(3), " V")), /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-neutral-600" }, "/"), /* @__PURE__ */ import_react6.default.createElement("span", null, "Max: ", /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-emerald-300 font-semibold" }, maxV?.toFixed(3), " V")), /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-neutral-600" }, "/"), /* @__PURE__ */ import_react6.default.createElement("span", { className: "text-neutral-400" }, "\u0394 ", ((maxV - minV) * 1e3).toFixed(0), " mV"))), /* @__PURE__ */ import_react6.default.createElement("div", { className: `grid gap-2 ${cells.length <= 8 ? "grid-cols-4 sm:grid-cols-8" : "grid-cols-4 sm:grid-cols-8 md:grid-cols-16"}` }, cells.map((v, i) => /* @__PURE__ */ import_react6.default.createElement(
       CellTile,
       {
         key: i,
@@ -23791,7 +23784,7 @@
         count: cells.length,
         onClick: () => onCellClick(i)
       }
-    ))));
+    ))), /* @__PURE__ */ import_react6.default.createElement("p", { className: "font-mono text-[10px] text-neutral-500 mt-2" }, "Click any cell block to inspect individual voltage history curve."));
   }
 
   // src/components/CellDetail.jsx
@@ -23801,6 +23794,7 @@
     const [loading, setLoading] = (0, import_react7.useState)(true);
     const voltage = cells[cellIndex] != null ? cells[cellIndex] : null;
     const num = cellIndex + 1;
+    const paddedNum = String(num).padStart(2, "0");
     (0, import_react7.useEffect)(() => {
       let cancelled = false;
       setLoading(true);
@@ -23830,39 +23824,41 @@
     const min = voltages.length ? Math.min(...voltages) : null;
     const max = voltages.length ? Math.max(...voltages) : null;
     const avg = voltages.length ? voltages.reduce((a, b) => a + b, 0) / voltages.length : null;
-    return /* @__PURE__ */ import_react7.default.createElement("div", { className: "mb-6" }, /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex items-center gap-3 mb-3" }, /* @__PURE__ */ import_react7.default.createElement(
+    return /* @__PURE__ */ import_react7.default.createElement("section", { className: "mb-6" }, /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-dashed border-white/10" }, /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ import_react7.default.createElement(
       "button",
       {
         onClick: onBack,
-        className: "text-xs text-slate-400 hover:text-white px-2 py-1 rounded border border-slate-700 hover:border-slate-500 transition-colors"
+        className: "zed-btn-neutral px-2.5 py-1 rounded text-xs font-mono text-neutral-300 hover:text-white flex items-center gap-1.5 cursor-pointer"
       },
-      "\u2190 Back"
-    ), /* @__PURE__ */ import_react7.default.createElement("h2", { className: "text-sm font-medium text-white" }, "Cell ", num), voltage != null && /* @__PURE__ */ import_react7.default.createElement("span", { className: "text-sm font-semibold tabular-nums text-blue-400" }, voltage.toFixed(3), " V")), voltages.length > 0 && /* @__PURE__ */ import_react7.default.createElement("div", { className: "grid grid-cols-3 gap-2 mb-3" }, /* @__PURE__ */ import_react7.default.createElement(Metric, { label: "Min", value: min.toFixed(3), unit: "V", color: "text-red-400" }), /* @__PURE__ */ import_react7.default.createElement(Metric, { label: "Avg", value: avg.toFixed(3), unit: "V" }), /* @__PURE__ */ import_react7.default.createElement(Metric, { label: "Max", value: max.toFixed(3), unit: "V", color: "text-emerald-400" })), loading && apiHistory.length === 0 && historyData.length < 2 ? /* @__PURE__ */ import_react7.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 p-4 text-xs text-slate-500" }, "Loading cell history\u2026") : historyData.length > 1 ? /* @__PURE__ */ import_react7.default.createElement(
-      Chart,
-      {
-        title: `Cell ${num} Voltage`,
-        data: historyData,
-        getValue: (d) => d.voltage,
-        unit: "V",
-        color: "#818cf8",
-        fillColor: "rgba(129,140,248,0.08)",
-        decimals: 3
-      }
-    ) : /* @__PURE__ */ import_react7.default.createElement("div", { className: "bg-slate-900 rounded-lg border border-slate-800 p-4 text-xs text-slate-500" }, "Not enough history data yet."), cells.length > 1 && /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex items-center gap-1.5 mt-3" }, /* @__PURE__ */ import_react7.default.createElement("span", { className: "text-[10px] text-slate-500 mr-1" }, "Cell:"), cells.map((_, i) => /* @__PURE__ */ import_react7.default.createElement(
+      /* @__PURE__ */ import_react7.default.createElement("span", null, "\u2190"),
+      /* @__PURE__ */ import_react7.default.createElement("span", null, "Grid")
+    ), /* @__PURE__ */ import_react7.default.createElement("div", { className: "h-4 w-[1px] bg-white/10" }), /* @__PURE__ */ import_react7.default.createElement("h2", { className: "font-serif text-lg text-white font-normal flex items-center gap-2" }, /* @__PURE__ */ import_react7.default.createElement("span", null, "Cell ", paddedNum), /* @__PURE__ */ import_react7.default.createElement("span", { className: "italic text-neutral-400 font-serif font-light text-sm" }, "Diagnostic"))), voltage != null && /* @__PURE__ */ import_react7.default.createElement("div", { className: "font-mono text-sm font-medium text-neutral-200 flex items-center gap-1.5 bg-neutral-900 px-2.5 py-1 rounded border border-white/10" }, /* @__PURE__ */ import_react7.default.createElement("span", { className: "text-neutral-500 text-xs" }, "CURRENT:"), /* @__PURE__ */ import_react7.default.createElement("span", { className: "text-white font-semibold" }, voltage.toFixed(3)), /* @__PURE__ */ import_react7.default.createElement("span", { className: "text-neutral-500 text-xs" }, "V"))), cells.length > 1 && /* @__PURE__ */ import_react7.default.createElement("div", { className: "flex items-center gap-1 overflow-x-auto pb-2 mb-4 scrollbar-none" }, /* @__PURE__ */ import_react7.default.createElement("span", { className: "font-mono text-[10px] uppercase tracking-wider text-neutral-500 mr-1.5 shrink-0" }, "Channel:"), cells.map((_, i) => /* @__PURE__ */ import_react7.default.createElement(
       "button",
       {
         key: i,
         onClick: () => onCellChange(i),
-        className: `text-[10px] w-6 h-6 rounded ${i === cellIndex ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "bg-slate-800 text-slate-400 border border-transparent hover:border-slate-600"}`
+        className: `font-mono text-[11px] px-2 py-1 rounded-sm shrink-0 transition-all cursor-pointer ${i === cellIndex ? "zed-btn-rust text-white font-semibold" : "zed-btn-neutral text-neutral-400 hover:text-neutral-200"}`
       },
-      i + 1
-    ))));
+      "C",
+      String(i + 1).padStart(2, "0")
+    ))), voltages.length > 0 && /* @__PURE__ */ import_react7.default.createElement("div", { className: "grid grid-cols-3 gap-3 mb-4" }, /* @__PURE__ */ import_react7.default.createElement(Metric, { label: "Recorded Min", value: min.toFixed(3), unit: "V", color: "text-rose-300" }), /* @__PURE__ */ import_react7.default.createElement(Metric, { label: "Running Avg", value: avg.toFixed(3), unit: "V", color: "text-neutral-100" }), /* @__PURE__ */ import_react7.default.createElement(Metric, { label: "Recorded Max", value: max.toFixed(3), unit: "V", color: "text-emerald-300" })), loading && apiHistory.length === 0 && historyData.length < 2 ? /* @__PURE__ */ import_react7.default.createElement("div", { className: "bg-[#1b1b1f] border border-white/10 rounded-sm p-8 text-center font-mono text-xs text-neutral-500" }, "Syncing cell telemetry buffer\u2026") : historyData.length > 1 ? /* @__PURE__ */ import_react7.default.createElement(
+      Chart,
+      {
+        title: `Cell ${paddedNum} Voltage History`,
+        data: historyData,
+        getValue: (d) => d.voltage,
+        unit: "V",
+        color: "#BF3C27",
+        fillColor: "rgba(191, 60, 39, 0.08)",
+        decimals: 3
+      }
+    ) : /* @__PURE__ */ import_react7.default.createElement("div", { className: "bg-[#1b1b1f] border border-white/10 rounded-sm p-8 text-center font-mono text-xs text-neutral-500" }, "Not enough historical records yet for Cell ", paddedNum, "."));
   }
 
   // src/components/SwitchIndicator.jsx
   var import_react8 = __toESM(require_react());
   function SwitchIndicator({ label, enabled }) {
-    return /* @__PURE__ */ import_react8.default.createElement("div", { className: `text-xs px-3 py-1.5 rounded border ${enabled ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400" : "bg-red-500/5 border-red-500/20 text-red-400"}` }, label, ": ", enabled ? "ON" : "OFF");
+    return /* @__PURE__ */ import_react8.default.createElement("div", { className: `font-mono text-xs px-3 py-1.5 rounded-sm border flex items-center gap-2 transition-colors ${enabled ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" : "bg-[#BF3C27]/10 border-[#BF3C27]/30 text-rose-300"}` }, /* @__PURE__ */ import_react8.default.createElement("span", { className: `w-1.5 h-1.5 rounded-full ${enabled ? "bg-emerald-400" : "bg-[#BF3C27]"}` }), /* @__PURE__ */ import_react8.default.createElement("span", { className: "text-neutral-400" }, label, ":"), /* @__PURE__ */ import_react8.default.createElement("span", { className: "font-semibold" }, enabled ? "ENABLED" : "DISABLED"));
   }
 
   // src/App.jsx
@@ -23894,33 +23890,61 @@
         return `${h.toFixed(1)}h`;
       return `${(h * 60).toFixed(0)}m`;
     })();
-    return /* @__PURE__ */ import_react9.default.createElement("div", { className: "max-w-5xl mx-auto" }, /* @__PURE__ */ import_react9.default.createElement(Header, { latest, isCharging, isDischarging, isOnline }), /* @__PURE__ */ import_react9.default.createElement("div", { className: "grid grid-cols-4 gap-3 mb-3" }, /* @__PURE__ */ import_react9.default.createElement(
+    return /* @__PURE__ */ import_react9.default.createElement("div", { className: "max-w-5xl mx-auto bg-[#18181b]/95 border-x border-white/10 min-h-screen px-4 sm:px-8 py-6 flex flex-col justify-between shadow-2xl" }, /* @__PURE__ */ import_react9.default.createElement("div", null, /* @__PURE__ */ import_react9.default.createElement(Header, { latest, isCharging, isDischarging, isOnline }), /* @__PURE__ */ import_react9.default.createElement("section", { className: "mb-6" }, /* @__PURE__ */ import_react9.default.createElement("div", { className: "flex items-center justify-between pb-2 mb-3 border-b border-dashed border-white/10" }, /* @__PURE__ */ import_react9.default.createElement("h2", { className: "font-serif text-sm text-neutral-300 font-normal" }, "Pack Overview"), /* @__PURE__ */ import_react9.default.createElement("span", { className: "font-mono text-[10px] text-neutral-500 uppercase tracking-wider" }, "Realtime Bus")), /* @__PURE__ */ import_react9.default.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3" }, /* @__PURE__ */ import_react9.default.createElement(
       Metric,
       {
-        label: "SOC",
+        label: "State of Charge",
         value: soc ?? "\u2014",
         unit: "%",
         large: true,
-        color: soc != null && soc < 20 ? "text-red-400" : soc != null && soc > 80 ? "text-emerald-400" : "text-white"
+        color: soc != null && soc < 20 ? "text-[#BF3C27]" : soc != null && soc > 80 ? "text-emerald-400" : "text-white",
+        sub: soc != null && soc > 90 ? "Battery full capacity" : null
       }
-    ), /* @__PURE__ */ import_react9.default.createElement(Metric, { label: "Voltage", value: fmt("total_voltage", 2), unit: "V", large: true }), /* @__PURE__ */ import_react9.default.createElement(
+    ), /* @__PURE__ */ import_react9.default.createElement(
       Metric,
       {
-        label: "Current",
+        label: "Pack Voltage",
+        value: fmt("total_voltage", 2),
+        unit: "V",
+        large: true,
+        color: "text-white"
+      }
+    ), /* @__PURE__ */ import_react9.default.createElement(
+      Metric,
+      {
+        label: "Net Current",
         value: fmt("current", 2),
         unit: "A",
         large: true,
-        color: isCharging ? "text-emerald-400" : isDischarging ? "text-amber-400" : "text-white"
+        color: isCharging ? "text-emerald-400" : isDischarging ? "text-[#e5933d]" : "text-neutral-300"
       }
-    ), /* @__PURE__ */ import_react9.default.createElement(Metric, { label: "Power", value: fmt("power", 0), unit: "W", large: true })), /* @__PURE__ */ import_react9.default.createElement("div", { className: "grid grid-cols-5 gap-3 mb-6" }, /* @__PURE__ */ import_react9.default.createElement(
+    ), /* @__PURE__ */ import_react9.default.createElement(
       Metric,
       {
-        label: "Cell \u0394",
+        label: "Active Power",
+        value: fmt("power", 0),
+        unit: "W",
+        large: true,
+        color: "text-[#e5933d]"
+      }
+    ))), /* @__PURE__ */ import_react9.default.createElement("section", { className: "mb-6" }, /* @__PURE__ */ import_react9.default.createElement("div", { className: "flex items-center justify-between pb-2 mb-3 border-b border-dashed border-white/10" }, /* @__PURE__ */ import_react9.default.createElement("h2", { className: "font-serif text-sm text-neutral-300 font-normal" }, "Diagnostics & Thermals"), /* @__PURE__ */ import_react9.default.createElement("span", { className: "font-mono text-[10px] text-neutral-500 uppercase tracking-wider" }, "Health Monitor")), /* @__PURE__ */ import_react9.default.createElement("div", { className: "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3" }, /* @__PURE__ */ import_react9.default.createElement(
+      Metric,
+      {
+        label: "Cell Delta",
         value: cellDiffMv,
         unit: "mV",
-        color: cellDiffMv !== "\u2014" && Number(cellDiffMv) > 30 ? "text-red-400" : "text-slate-200"
+        color: cellDiffMv !== "\u2014" && Number(cellDiffMv) > 30 ? "text-[#BF3C27]" : "text-neutral-200",
+        sub: cellDiffMv !== "\u2014" && Number(cellDiffMv) <= 15 ? "Excellent balance" : null
       }
-    ), /* @__PURE__ */ import_react9.default.createElement(Metric, { label: "MOS Temp", value: fmt("temp_mos"), unit: "\xB0C" }), /* @__PURE__ */ import_react9.default.createElement(Metric, { label: "Bat Temp 1", value: fmt("temp_battery_1"), unit: "\xB0C" }), /* @__PURE__ */ import_react9.default.createElement(Metric, { label: "Bat Temp 2", value: fmt("temp_battery_2"), unit: "\xB0C" }), /* @__PURE__ */ import_react9.default.createElement(Metric, { label: "Capacity", value: fmt("capacity_remaining", 1), unit: "Ah", sub: runtime ? `~${runtime} left` : null })), selectedCell != null ? /* @__PURE__ */ import_react9.default.createElement(
+    ), /* @__PURE__ */ import_react9.default.createElement(Metric, { label: "MOSFET Temp", value: fmt("temp_mos"), unit: "\xB0C" }), /* @__PURE__ */ import_react9.default.createElement(Metric, { label: "Probe Temp 1", value: fmt("temp_battery_1"), unit: "\xB0C" }), /* @__PURE__ */ import_react9.default.createElement(Metric, { label: "Probe Temp 2", value: fmt("temp_battery_2"), unit: "\xB0C" }), /* @__PURE__ */ import_react9.default.createElement(
+      Metric,
+      {
+        label: "Capacity Left",
+        value: fmt("capacity_remaining", 1),
+        unit: "Ah",
+        sub: runtime ? `~${runtime} remaining` : null
+      }
+    ))), selectedCell != null ? /* @__PURE__ */ import_react9.default.createElement(
       CellDetail,
       {
         cellIndex: selectedCell,
@@ -23929,29 +23953,29 @@
         onCellChange: setSelectedCell,
         onBack: () => setSelectedCell(null)
       }
-    ) : /* @__PURE__ */ import_react9.default.createElement(CellGrid, { cells, minV, maxV, onCellClick: setSelectedCell }), /* @__PURE__ */ import_react9.default.createElement("div", { className: "flex gap-3 mb-6" }, /* @__PURE__ */ import_react9.default.createElement(SwitchIndicator, { label: "Charge", enabled: val("charging_enabled") === 1 }), /* @__PURE__ */ import_react9.default.createElement(SwitchIndicator, { label: "Discharge", enabled: val("discharging_enabled") === 1 })), history.length > 1 && /* @__PURE__ */ import_react9.default.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3" }, /* @__PURE__ */ import_react9.default.createElement(
+    ) : /* @__PURE__ */ import_react9.default.createElement(CellGrid, { cells, minV, maxV, onCellClick: setSelectedCell }), history.length > 1 && /* @__PURE__ */ import_react9.default.createElement("section", { className: "mb-6" }, /* @__PURE__ */ import_react9.default.createElement("div", { className: "flex items-center justify-between pb-2 mb-3 border-b border-dashed border-white/10" }, /* @__PURE__ */ import_react9.default.createElement("h2", { className: "font-serif text-sm text-neutral-300 font-normal" }, "Temporal Telemetry"), /* @__PURE__ */ import_react9.default.createElement("span", { className: "font-mono text-[10px] text-neutral-500 uppercase tracking-wider" }, "Cloudflare D1 Log")), /* @__PURE__ */ import_react9.default.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" }, /* @__PURE__ */ import_react9.default.createElement(
       Chart,
       {
-        title: "Voltage",
+        title: "Pack Voltage History",
         data: history,
         getValue: (d) => d.total_voltage,
         unit: "V",
-        color: "#60a5fa",
-        fillColor: "rgba(96,165,250,0.08)",
+        color: "#61afef",
+        fillColor: "rgba(97, 175, 239, 0.06)",
         decimals: 2
       }
     ), /* @__PURE__ */ import_react9.default.createElement(
       Chart,
       {
-        title: "Power",
+        title: "Active Power History",
         data: history,
         getValue: (d) => d.total_voltage * d.current,
         unit: "W",
-        color: "#fbbf24",
-        fillColor: "rgba(251,191,36,0.08)",
+        color: "#e5933d",
+        fillColor: "rgba(229, 147, 61, 0.06)",
         decimals: 0
       }
-    )));
+    ))), /* @__PURE__ */ import_react9.default.createElement("div", { className: "flex flex-wrap items-center gap-3 pt-2" }, /* @__PURE__ */ import_react9.default.createElement(SwitchIndicator, { label: "Charge FET", enabled: val("charging_enabled") === 1 }), /* @__PURE__ */ import_react9.default.createElement(SwitchIndicator, { label: "Discharge FET", enabled: val("discharging_enabled") === 1 }))), /* @__PURE__ */ import_react9.default.createElement("footer", { className: "pt-8 mt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-neutral-500 font-mono text-[11px]" }, /* @__PURE__ */ import_react9.default.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ import_react9.default.createElement("span", { className: "w-1.5 h-1.5 rounded-full bg-[#BF3C27]" }), /* @__PURE__ */ import_react9.default.createElement("span", null, "JK-BMS Gateway"), /* @__PURE__ */ import_react9.default.createElement("span", { className: "text-neutral-700" }, "/"), /* @__PURE__ */ import_react9.default.createElement("span", null, "ESP32 NimBLE")), /* @__PURE__ */ import_react9.default.createElement("div", null, /* @__PURE__ */ import_react9.default.createElement("span", null, "Engineered with Cloudflare Workers & D1"))));
   }
 
   // src/main.jsx
