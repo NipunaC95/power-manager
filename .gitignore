@@ -1,4 +1,6 @@
 # PlatformIO build files
+frontend/node_modules/
+frontend/dist/
 /.pio/
 /.vscode/
 # Build output artifacts
