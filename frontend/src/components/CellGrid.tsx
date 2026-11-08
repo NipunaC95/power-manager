@@ -1,7 +1,14 @@
 import React from 'react';
-import CellTile from './CellTile.jsx';
+import CellTile from './CellTile';
 
-export default function CellGrid({ cells, minV, maxV, onCellClick }) {
+export interface CellGridProps {
+  cells: number[];
+  minV: number | null;
+  maxV: number | null;
+  onCellClick: (index: number) => void;
+}
+
+export default function CellGrid({ cells, minV, maxV, onCellClick }: CellGridProps) {
   if (!cells.length) return null;
 
   return (
@@ -16,11 +23,11 @@ export default function CellGrid({ cells, minV, maxV, onCellClick }) {
           </span>
         </div>
         <div className="font-mono text-[11px] text-neutral-400 flex items-center gap-2">
-          <span>Min: <span className="text-rose-300 font-semibold">{minV?.toFixed(3)} V</span></span>
+          <span>Min: <span className="text-rose-300 font-semibold">{minV != null ? minV.toFixed(3) : '—'} V</span></span>
           <span className="text-neutral-600">/</span>
-          <span>Max: <span className="text-emerald-300 font-semibold">{maxV?.toFixed(3)} V</span></span>
+          <span>Max: <span className="text-emerald-300 font-semibold">{maxV != null ? maxV.toFixed(3) : '—'} V</span></span>
           <span className="text-neutral-600">/</span>
-          <span className="text-neutral-400">Δ {((maxV - minV) * 1000).toFixed(0)} mV</span>
+          <span className="text-neutral-400">Δ {minV != null && maxV != null ? ((maxV - minV) * 1000).toFixed(0) : '—'} mV</span>
         </div>
       </div>
 

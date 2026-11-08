@@ -1,6 +1,15 @@
 import React from 'react';
 
-export default function CellTile({ index, voltage, min, max, count, onClick }) {
+export interface CellTileProps {
+  index: number;
+  voltage: number;
+  min: number | null;
+  max: number | null;
+  count: number;
+  onClick: () => void;
+}
+
+export default function CellTile({ index, voltage, min, max, count, onClick }: CellTileProps) {
   const isMin = count > 1 && voltage === min;
   const isMax = count > 1 && voltage === max;
 

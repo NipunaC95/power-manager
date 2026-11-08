@@ -1,6 +1,11 @@
 import React from 'react';
 
-export default function SwitchIndicator({ label, enabled }) {
+export interface SwitchIndicatorProps {
+  label: string;
+  enabled: boolean;
+}
+
+export default function SwitchIndicator({ label, enabled }: SwitchIndicatorProps) {
   return (
     <div className={`font-mono text-xs px-3 py-1.5 rounded-sm border flex items-center gap-2 transition-colors ${
       enabled

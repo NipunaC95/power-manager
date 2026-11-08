@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { useTelemetry } from './hooks/useTelemetry.js';
-import { parseCells } from './utils/format.js';
-import { loadSettings, calculateSoc, calculateCapacityRemaining, calculateSoh, fetchSettingsApi } from './utils/soc.js';
+import { useTelemetry } from './hooks/useTelemetry';
+import { parseCells } from './utils/format';
+import { loadSettings, calculateSoc, calculateCapacityRemaining, fetchSettingsApi } from './utils/soc';
+import { BmsSettings, TelemetryData } from './types';
 
-import Header from './components/Header.jsx';
-import Metric from './components/Metric.jsx';
-import Chart from './components/Chart.jsx';
-import CellGrid from './components/CellGrid.jsx';
-import CellDetail from './components/CellDetail.jsx';
-import SwitchIndicator from './components/SwitchIndicator.jsx';
-import Settings from './components/Settings.jsx';
+import Header from './components/Header';
+import Metric from './components/Metric';
+import Chart from './components/Chart';
+import CellGrid from './components/CellGrid';
+import CellDetail from './components/CellDetail';
+import SwitchIndicator from './components/SwitchIndicator';
+import Settings from './components/Settings';
 
 export default function App() {
   const { latest, history, isWsConnected } = useTelemetry();
-  const [selectedCell, setSelectedCell] = useState(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState(loadSettings);
+  const [selectedCell, setSelectedCell] = useState<number | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [settings, setSettings] = useState<BmsSettings>(loadSettings);
 
   // Sync settings from Cloudflare D1 on mount
   useEffect(() => {
@@ -24,18 +25,20 @@ export default function App() {
     });
   }, []);
 
-  const val = (key) => latest?.[key] ?? null;
-  const fmt = (key, d = 1) => { const v = val(key); return v != null ? Number(v).toFixed(d) : '—'; };
+  const val = (key: keyof TelemetryData) => latest?.[key] ?? null;
+  const fmt = (key: keyof TelemetryData, d = 1): string => {
+    const v = val(key);
+    return v != null ? Number(v).toFixed(d) : '—';
+  };
 
   const cells = parseCells(latest);
   const minV = cells.length ? Math.min(...cells) : null;
   const maxV = cells.length ? Math.max(...cells) : null;
-  const cellDiffMv = minV != null ? ((maxV - minV) * 1000).toFixed(0) : '—';
+  const cellDiffMv = minV != null && maxV != null ? ((maxV - minV) * 1000).toFixed(0) : '—';
 
   const current = val('current');
   const displaySoc = calculateSoc(latest, settings);
   const displayCapacity = calculateCapacityRemaining(latest, settings, displaySoc);
-  const displaySoh = calculateSoh(latest, settings);
 
   const isCharging = current != null && Number(current) > 0.5;
   const isDischarging = current != null && Number(current) < -0.5;
@@ -146,20 +149,13 @@ export default function App() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 <Metric
                   label="Cell Delta"
                   value={cellDiffMv}
                   unit="mV"
                   color={cellDiffMv !== '—' && Number(cellDiffMv) > 30 ? 'text-[#BF3C27]' : 'text-neutral-200'}
                   sub={cellDiffMv !== '—' && Number(cellDiffMv) <= 15 ? 'Excellent balance' : null}
-                />
-                <Metric
-                  label="State of Health"
-                  value={displaySoh}
-                  unit="%"
-                  color={displaySoh < 80 ? 'text-[#BF3C27]' : 'text-emerald-400'}
-                  sub={settings.sohOverride != null && settings.sohOverride < 100 ? 'Manual SOH override' : 'Optimal health'}
                 />
                 <Metric label="MOSFET Temp" value={fmt('temp_mos')} unit="°C" />
                 <Metric label="Probe Temp 1" value={fmt('temp_battery_1')} unit="°C" />
@@ -232,7 +228,7 @@ export default function App() {
                   <Chart
                     title="Power History"
                     data={history}
-                    getValue={(d) => d.total_voltage * d.current}
+                    getValue={(d) => (d.total_voltage != null && d.current != null ? d.total_voltage * d.current : null)}
                     unit="W"
                     color="#e5933d"
                     fillColor="rgba(229, 147, 61, 0.06)"

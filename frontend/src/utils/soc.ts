@@ -1,8 +1,9 @@
 /**
  * SOC (State of Charge) & Battery Settings Utility
  */
+import { BmsSettings, TelemetryData } from '../types';
 
-export const DEFAULT_SETTINGS = {
+export const DEFAULT_SETTINGS: BmsSettings = {
   batteryCapacityAh: 100,
   enableManualSoc: false,
   socMethod: 'lifepo4_curve', // 'lifepo4_curve' | 'voltage_range' | 'capacity_ratio'
@@ -11,7 +12,7 @@ export const DEFAULT_SETTINGS = {
   sohOverride: 100, // 100% default State of Health
 };
 
-export function loadSettings() {
+export function loadSettings(): BmsSettings {
   try {
     const saved = localStorage.getItem('jkbms_settings');
     if (saved) return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
@@ -19,19 +20,19 @@ export function loadSettings() {
   return DEFAULT_SETTINGS;
 }
 
-export function saveSettingsLocal(settings) {
+export function saveSettingsLocal(settings: BmsSettings): void {
   try {
     localStorage.setItem('jkbms_settings', JSON.stringify(settings));
   } catch (e) {}
 }
 
-export async function fetchSettingsApi() {
+export async function fetchSettingsApi(): Promise<BmsSettings> {
   try {
     const resp = await fetch('/api/settings');
     if (resp.ok) {
       const data = await resp.json();
       if (data && typeof data === 'object') {
-        const merged = { ...DEFAULT_SETTINGS, ...data };
+        const merged: BmsSettings = { ...DEFAULT_SETTINGS, ...data };
         saveSettingsLocal(merged);
         return merged;
       }
@@ -40,7 +41,7 @@ export async function fetchSettingsApi() {
   return loadSettings();
 }
 
-export async function saveSettingsApi(settings) {
+export async function saveSettingsApi(settings: BmsSettings): Promise<BmsSettings> {
   saveSettingsLocal(settings);
   try {
     const resp = await fetch('/api/settings', {
@@ -56,7 +57,7 @@ export async function saveSettingsApi(settings) {
   return settings;
 }
 
-export function calculateSoc(telemetry, settings) {
+export function calculateSoc(telemetry?: TelemetryData | null, settings?: BmsSettings | null): number {
   if (!telemetry) return 0;
   if (!settings || !settings.enableManualSoc) {
     return telemetry.soc ?? 0;
@@ -65,7 +66,7 @@ export function calculateSoc(telemetry, settings) {
   const { socMethod, batteryCapacityAh, vMin, vMax } = settings;
   const voltage = Number(telemetry.total_voltage) || 0;
 
-  let cells = [];
+  let cells: number[] = [];
   if (Array.isArray(telemetry.cell_voltages)) {
     cells = telemetry.cell_voltages.map(Number);
   } else if (typeof telemetry.cell_voltages === 'string') {
@@ -128,7 +129,11 @@ export function calculateSoc(telemetry, settings) {
  * When manual SOC override is active or when raw BMS capacity is 0 / uncalibrated,
  * calculates Ah remaining based on active SOC and configured battery capacity.
  */
-export function calculateCapacityRemaining(telemetry, settings, displaySoc) {
+export function calculateCapacityRemaining(
+  telemetry?: TelemetryData | null,
+  settings?: BmsSettings | null,
+  displaySoc?: number | null
+): number {
   if (!telemetry) return 0;
   const rawCap = Number(telemetry.capacity_remaining);
   const ratedAh = Number(settings?.batteryCapacityAh) || 100;
@@ -145,7 +150,7 @@ export function calculateCapacityRemaining(telemetry, settings, displaySoc) {
  * Calculate SOH (State of Health) %
  * Calculates pack health based on manual override setting or cell balance dispersion.
  */
-export function calculateSoh(telemetry, settings) {
+export function calculateSoh(telemetry?: TelemetryData | null, settings?: BmsSettings | null): number {
   if (!telemetry) return 100;
 
   // Custom user override in settings
@@ -154,7 +159,7 @@ export function calculateSoh(telemetry, settings) {
   }
 
   // Automatic calculation based on cell voltage divergence
-  let cells = [];
+  let cells: number[] = [];
   if (Array.isArray(telemetry.cell_voltages)) {
     cells = telemetry.cell_voltages.map(Number);
   } else if (typeof telemetry.cell_voltages === 'string') {
