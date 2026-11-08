@@ -11,10 +11,14 @@ export function timeAgo(ts?: string | null): string {
   return d.toLocaleDateString();
 }
 
-export function formatTime(ts?: string | null): string {
+export function formatTime(ts?: string | null, includeSeconds = false): string {
   if (!ts) return '';
   const d = new Date(ts.includes('Z') || ts.includes('+') ? ts : ts + 'Z');
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(includeSeconds ? { second: '2-digit' } : {}),
+  });
 }
 
 export function parseCells(latest?: TelemetryData | null): number[] {
