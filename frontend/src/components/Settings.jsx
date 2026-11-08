@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { DEFAULT_SETTINGS, calculateSoc, saveSettings } from '../utils/soc.js';
+import { DEFAULT_SETTINGS, calculateSoc, saveSettingsApi } from '../utils/soc.js';
 
 export default function Settings({ settings, onSave, onBack, latest }) {
   const [form, setForm] = useState({ ...settings });
+  const [isSaving, setIsSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
 
   const previewSoc = calculateSoc(latest, form);
@@ -13,12 +14,14 @@ export default function Settings({ settings, onSave, onBack, latest }) {
     setSavedNotice(false);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    saveSettings(form);
-    onSave(form);
+    setIsSaving(true);
+    const updated = await saveSettingsApi(form);
+    setIsSaving(false);
+    onSave(updated);
     setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 2500);
+    setTimeout(() => setSavedNotice(false), 3000);
   };
 
   const handleReset = () => {
@@ -250,15 +253,16 @@ export default function Settings({ settings, onSave, onBack, latest }) {
 
           <div className="flex items-center gap-3">
             {savedNotice && (
-              <span className="font-mono text-xs text-emerald-400 flex items-center gap-1 animate-fade-in">
-                <span>✓</span> Settings saved
+              <span className="font-mono text-xs text-emerald-400 flex items-center gap-1">
+                <span>✓</span> Saved to Cloudflare D1
               </span>
             )}
             <button
               type="submit"
-              className="zed-btn-rust px-6 py-2 rounded text-xs font-mono text-white font-semibold cursor-pointer"
+              disabled={isSaving}
+              className="zed-btn-rust px-6 py-2 rounded text-xs font-mono text-white font-semibold cursor-pointer disabled:opacity-50"
             >
-              Save Configuration
+              {isSaving ? 'Saving to D1…' : 'Save Configuration'}
             </button>
           </div>
         </div>

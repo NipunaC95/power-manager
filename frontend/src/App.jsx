@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTelemetry } from './hooks/useTelemetry.js';
 import { parseCells } from './utils/format.js';
-import { loadSettings, calculateSoc } from './utils/soc.js';
+import { loadSettings, calculateSoc, fetchSettingsApi } from './utils/soc.js';
 
 import Header from './components/Header.jsx';
 import Metric from './components/Metric.jsx';
@@ -17,6 +17,13 @@ export default function App() {
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settings, setSettings] = useState(loadSettings);
+
+  // Sync settings from Cloudflare D1 on mount
+  useEffect(() => {
+    fetchSettingsApi().then((d) => {
+      if (d) setSettings(d);
+    });
+  }, []);
 
   const selectedHistoryItem =
     selectedHistoryIndex != null && history[selectedHistoryIndex]

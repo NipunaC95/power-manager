@@ -18,10 +18,41 @@ export function loadSettings() {
   return DEFAULT_SETTINGS;
 }
 
-export function saveSettings(settings) {
+export function saveSettingsLocal(settings) {
   try {
     localStorage.setItem('jkbms_settings', JSON.stringify(settings));
   } catch (e) {}
+}
+
+export async function fetchSettingsApi() {
+  try {
+    const resp = await fetch('/api/settings');
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data && typeof data === 'object') {
+        const merged = { ...DEFAULT_SETTINGS, ...data };
+        saveSettingsLocal(merged);
+        return merged;
+      }
+    }
+  } catch (e) {}
+  return loadSettings();
+}
+
+export async function saveSettingsApi(settings) {
+  saveSettingsLocal(settings);
+  try {
+    const resp = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (resp.ok) {
+      const result = await resp.json();
+      return result.settings || settings;
+    }
+  } catch (e) {}
+  return settings;
 }
 
 export function calculateSoc(telemetry, settings) {

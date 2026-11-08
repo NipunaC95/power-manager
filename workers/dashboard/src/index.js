@@ -178,10 +178,10 @@ export default {
       });
     }
 
-    // CORS headers for HTTP GET
+    // CORS headers for HTTP
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     };
 
@@ -240,6 +240,69 @@ export default {
       `).bind(limit).all();
 
       return json(results.results || []);
+    }
+
+    // ── GET /api/settings ───────────────────────────────────
+    if (url.pathname === "/api/settings" && request.method === "GET") {
+      const row = await env.DB.prepare(
+        "SELECT * FROM bms_settings WHERE id = 1"
+      ).first();
+
+      if (row) {
+        return json({
+          batteryCapacityAh: row.battery_capacity_ah,
+          enableManualSoc: row.enable_manual_soc === 1,
+          socMethod: row.soc_method,
+          vMin: row.v_min,
+          vMax: row.v_max,
+          updatedAt: row.updated_at,
+        });
+      }
+
+      return json({
+        batteryCapacityAh: 100,
+        enableManualSoc: false,
+        socMethod: "lifepo4_curve",
+        vMin: 24.0,
+        vMax: 27.2,
+      });
+    }
+
+    // ── POST /api/settings ──────────────────────────────────
+    if (url.pathname === "/api/settings" && request.method === "POST") {
+      try {
+        const body = await request.json();
+        const batteryCapacityAh = Number(body.batteryCapacityAh) || 100;
+        const enableManualSoc = body.enableManualSoc ? 1 : 0;
+        const socMethod = String(body.socMethod || "lifepo4_curve");
+        const vMin = Number(body.vMin) || 24.0;
+        const vMax = Number(body.vMax) || 27.2;
+
+        await env.DB.prepare(`
+          INSERT INTO bms_settings (id, battery_capacity_ah, enable_manual_soc, soc_method, v_min, v_max, updated_at)
+          VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(id) DO UPDATE SET
+            battery_capacity_ah = excluded.battery_capacity_ah,
+            enable_manual_soc = excluded.enable_manual_soc,
+            soc_method = excluded.soc_method,
+            v_min = excluded.v_min,
+            v_max = excluded.v_max,
+            updated_at = CURRENT_TIMESTAMP;
+        `).bind(batteryCapacityAh, enableManualSoc, socMethod, vMin, vMax).run();
+
+        return json({
+          success: true,
+          settings: {
+            batteryCapacityAh,
+            enableManualSoc: enableManualSoc === 1,
+            socMethod,
+            vMin,
+            vMax,
+          },
+        });
+      } catch (err) {
+        return json({ error: err.message }, 400);
+      }
     }
 
     // ── Serve static frontend ───────────────────────────────

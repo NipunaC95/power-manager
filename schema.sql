@@ -30,3 +30,17 @@ CREATE TABLE IF NOT EXISTS cell_data (
 CREATE INDEX IF NOT EXISTS idx_telemetry_ts   ON bms_telemetry(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_cell_telemetry ON cell_data(telemetry_id);
 CREATE INDEX IF NOT EXISTS idx_cell_index_ts  ON cell_data(cell_index, telemetry_id);
+
+-- User battery pack configuration and manual SOC overrides
+CREATE TABLE IF NOT EXISTS bms_settings (
+    id                  INTEGER PRIMARY KEY CHECK (id = 1),
+    battery_capacity_ah REAL NOT NULL DEFAULT 100,
+    enable_manual_soc   INTEGER NOT NULL DEFAULT 0,
+    soc_method          TEXT NOT NULL DEFAULT 'lifepo4_curve',
+    v_min               REAL NOT NULL DEFAULT 24.0,
+    v_max               REAL NOT NULL DEFAULT 27.2,
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT OR IGNORE INTO bms_settings (id, battery_capacity_ah, enable_manual_soc, soc_method, v_min, v_max)
+VALUES (1, 100, 0, 'lifepo4_curve', 24.0, 27.2);
