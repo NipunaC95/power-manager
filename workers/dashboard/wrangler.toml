@@ -12,3 +12,4 @@ database_id = "5d7cd553-9808-4cf5-9532-5c55191aa531"
 [assets]
 directory = "../../public"
 binding = "ASSETS"
+
