@@ -256,9 +256,15 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  // Free unused Classic Bluetooth memory (~30 KB) before BLE init
-  esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
+  Serial.println("[SYSTEM] Starting ESP32 JK-BMS Gateway...");
+  Serial.printf("[MEM] Free heap at start: %u bytes\n", ESP.getFreeHeap());
 
+  // Initialize BLE first so coexistence arbiter sets up radio sharing
+  NimBLEDevice::init("ESP32_JK_BLE");
+  pClient = NimBLEDevice::createClient();
+  pClient->setClientCallbacks(new MyClientCallbacks());
+
+  // Connect Wi-Fi (using standard modem sleep for coexistence time-slicing)
   Serial.printf("Connecting to Wi-Fi: %s\n", WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
@@ -266,20 +272,12 @@ void setup() {
     Serial.print(".");
   }
 
-  // Disable Wi-Fi modem sleep to prevent radio coexistence jitter & BLE dropouts
-  WiFi.setSleep(false);
-  esp_wifi_set_ps(WIFI_PS_NONE);
-
   Serial.printf("\nWiFi connected! IP: %s\n", WiFi.localIP().toString().c_str());
   Serial.printf("[MEM] Free heap after init: %u bytes\n", ESP.getFreeHeap());
 
   // Configure MQTT client
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   mqttClient.setBufferSize(2048); // Allow large JSON payload with 24 cell voltages
-
-  NimBLEDevice::init("ESP32_JK_BLE");
-  pClient = NimBLEDevice::createClient();
-  pClient->setClientCallbacks(new MyClientCallbacks());
 }
 
 void loop() {
