@@ -10,6 +10,9 @@
     "build:workers": "esbuild workers/ingest/src/index.ts --outfile=workers/ingest/src/index.js --format=esm --target=es2022 && esbuild workers/dashboard/src/index.ts --outfile=workers/dashboard/src/index.js --format=esm --target=es2022",
     "build:bridge": "esbuild scripts/mqtt_bridge.ts --bundle --platform=node --target=node18 --outfile=dist/mqtt_bridge.js",
     "start:bridge": "npm run env:sync && npm run build:bridge && node dist/mqtt_bridge.js",
+    "build:server": "esbuild server/src/server.ts --bundle --platform=node --target=node18 --external:better-sqlite3 --outfile=dist/server.js",
+    "start:server": "node dist/server.js",
+    "build:standalone": "npm run build:frontend && npm run build:server",
     "build": "npm run env:sync && npm run build:workers && npm run build:bridge && npm run build:frontend",
     "deploy:ingest": "npm run env:sync && npm run build:workers && cd workers/ingest && wrangler deploy",
     "deploy:dashboard": "npm run env:sync && npm run build && cd workers/dashboard && wrangler deploy",
@@ -18,11 +21,17 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261108.1",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/express": "^5.0.6",
+    "@types/ws": "^8.18.2",
     "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "better-sqlite3": "^13.2.0",
     "dotenv": "^18.0.9",
-    "mqtt": "^5.16.1"
+    "express": "^5.3.0",
+    "mqtt": "^5.16.1",
+    "ws": "^8.23.0"
   }
 }

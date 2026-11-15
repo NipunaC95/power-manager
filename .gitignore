@@ -9,6 +9,13 @@ frontend/dist/
 
 # Build output
 public/bundle.js
+dist/
+
+# Local databases
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/*.sqlite
 
 # Build artifacts
 *.elf
