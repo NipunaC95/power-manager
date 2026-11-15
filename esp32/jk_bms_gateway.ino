@@ -7,6 +7,8 @@
 #include <PubSubClient.h>
 #include <NimBLEDevice.h>
 #include <ArduinoJson.h>
+#include <esp_bt.h>
+#include <esp_wifi.h>
 #include "config.h"
 
 // Standard JK BLE UUIDs
@@ -254,13 +256,22 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
+  // Free unused Classic Bluetooth memory (~30 KB) before BLE init
+  esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
+
   Serial.printf("Connecting to Wi-Fi: %s\n", WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
+
+  // Disable Wi-Fi modem sleep to prevent radio coexistence jitter & BLE dropouts
+  WiFi.setSleep(false);
+  esp_wifi_set_ps(WIFI_PS_NONE);
+
   Serial.printf("\nWiFi connected! IP: %s\n", WiFi.localIP().toString().c_str());
+  Serial.printf("[MEM] Free heap after init: %u bytes\n", ESP.getFreeHeap());
 
   // Configure MQTT client
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
