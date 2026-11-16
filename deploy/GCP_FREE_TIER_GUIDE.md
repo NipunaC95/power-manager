@@ -83,7 +83,7 @@ Google Cloud provides Container-Optimized OS to launch the Docker image directly
 
 ```bash
 gcloud compute instances create-with-container jkbms-server \
-    --project=<YOUR_PROJECT_ID> \
+    --project=payment-project-401113 \
     --zone=us-central1-a \
     --machine-type=e2-micro \
     --boot-disk-size=30GB \
