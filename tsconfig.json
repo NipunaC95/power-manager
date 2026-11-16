@@ -1,14 +1,14 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "strict": true,
     "skipLibCheck": true,
-    "types": ["@cloudflare/workers-types"]
+    "esModuleInterop": true
   },
   "include": [
-    "workers/ingest/src/**/*.ts",
-    "workers/dashboard/src/**/*.ts"
+    "server/src/**/*.ts",
+    "scripts/**/*.ts"
   ]
 }
