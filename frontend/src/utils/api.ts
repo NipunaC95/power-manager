@@ -53,3 +53,4 @@ export function getWsUrl(): string {
   const wsProtocol = isHttps ? 'wss:' : 'ws:';
   return `${wsProtocol}//${window.location.host}/api/ws`;
 }
+

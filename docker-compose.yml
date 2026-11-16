@@ -21,6 +21,8 @@ services:
       - MQTT_PASSWORD=${MQTT_PASSWORD:-}
       - MQTT_TOPIC=${MQTT_TOPIC:-jkbms/+/telemetry}
       - API_KEY=${API_KEY:-}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - NODE_OPTIONS=--max-old-space-size=384
     volumes:
       - jkbms-data:/app/data
 

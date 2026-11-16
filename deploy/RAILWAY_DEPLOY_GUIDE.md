@@ -121,3 +121,4 @@ Once deployed on Railway:
    Open `https://<your-railway-app>.up.railway.app` in any browser:
    - Green **ONLINE** / **WS LIVE** status indicates active streaming.
    - Individual cell voltages, real-time power chart, temperatures, and dynamic runtime estimates update every 2 seconds.
+

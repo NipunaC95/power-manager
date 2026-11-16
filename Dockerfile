@@ -37,6 +37,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV DB_PATH=/app/data/jkbms.db
 ENV PUBLIC_DIR=/app/public
+ENV NODE_OPTIONS="--max-old-space-size=384"
 
 # Install runtime libraries for native modules
 RUN apt-get update && apt-get install -y --no-install-recommends \
