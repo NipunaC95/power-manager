@@ -55,34 +55,40 @@ ALTER TABLE public.cell_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bms_settings ENABLE ROW LEVEL SECURITY;
 
 -- Allow public read access (for dashboard display)
+DROP POLICY IF EXISTS "Allow public read access on bms_telemetry" ON public.bms_telemetry;
 CREATE POLICY "Allow public read access on bms_telemetry"
     ON public.bms_telemetry FOR SELECT
     TO anon, authenticated
     USING (true);
 
+DROP POLICY IF EXISTS "Allow public read access on cell_data" ON public.cell_data;
 CREATE POLICY "Allow public read access on cell_data"
     ON public.cell_data FOR SELECT
     TO anon, authenticated
     USING (true);
 
+DROP POLICY IF EXISTS "Allow public read access on bms_settings" ON public.bms_settings;
 CREATE POLICY "Allow public read access on bms_settings"
     ON public.bms_settings FOR SELECT
     TO anon, authenticated
     USING (true);
 
 -- Allow service_role write access
+DROP POLICY IF EXISTS "Allow service_role write on bms_telemetry" ON public.bms_telemetry;
 CREATE POLICY "Allow service_role write on bms_telemetry"
     ON public.bms_telemetry FOR ALL
     TO service_role
     USING (true)
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow service_role write on cell_data" ON public.cell_data;
 CREATE POLICY "Allow service_role write on cell_data"
     ON public.cell_data FOR ALL
     TO service_role
     USING (true)
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow service_role write on bms_settings" ON public.bms_settings;
 CREATE POLICY "Allow service_role write on bms_settings"
     ON public.bms_settings FOR ALL
     TO service_role
@@ -90,11 +96,13 @@ CREATE POLICY "Allow service_role write on bms_settings"
     WITH CHECK (true);
 
 -- Allow anon insert for telemetry
+DROP POLICY IF EXISTS "Allow anon insert on bms_telemetry" ON public.bms_telemetry;
 CREATE POLICY "Allow anon insert on bms_telemetry"
     ON public.bms_telemetry FOR INSERT
     TO anon
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow anon insert on cell_data" ON public.cell_data;
 CREATE POLICY "Allow anon insert on cell_data"
     ON public.cell_data FOR INSERT
     TO anon
