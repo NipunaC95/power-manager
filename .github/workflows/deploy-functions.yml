@@ -19,7 +19,7 @@ jobs:
 
       - name: Deploy telemetry function
         run: |
-          supabase functions deploy telemetry --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --no-verify-jwt
+          supabase functions deploy telemetry --project-ref "${{ secrets.SUPABASE_PROJECT_ID || 'ljjajsrihkkzdsjrfubd' }}" --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
