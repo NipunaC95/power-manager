@@ -12,7 +12,6 @@ dist
 .env.*
 !.env.example
 *.log
-supabase/.temp
 esp32
 src_pio
 deploy

@@ -314,7 +314,7 @@ export default function Settings({ settings, onSave, onBack, latest }: SettingsP
           <div className="flex items-center gap-3">
             {savedNotice && (
               <span className="font-mono text-xs text-emerald-400 flex items-center gap-1">
-                <span>✓</span> Saved to Cloudflare D1
+                <span>✓</span> Saved successfully
               </span>
             )}
             <button
@@ -322,7 +322,7 @@ export default function Settings({ settings, onSave, onBack, latest }: SettingsP
               disabled={isSaving}
               className="zed-btn-rust px-6 py-2 rounded text-xs font-mono text-white font-semibold cursor-pointer disabled:opacity-50"
             >
-              {isSaving ? 'Saving to D1…' : 'Save Configuration'}
+              {isSaving ? 'Saving…' : 'Save Configuration'}
             </button>
           </div>
         </div>

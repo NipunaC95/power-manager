@@ -18,7 +18,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [settings, setSettings] = useState<BmsSettings>(loadSettings);
 
-  // Sync settings from Cloudflare D1 on mount
+  // Sync settings from backend on mount
   useEffect(() => {
     fetchSettingsApi().then((d) => {
       if (d) setSettings(d);
@@ -197,7 +197,7 @@ export default function App() {
                     )}
                   </div>
                   <span className="font-mono text-[10px] text-neutral-500 uppercase tracking-wider">
-                    Cloudflare D1 Log
+                    Telemetry History
                   </span>
                 </div>
 
@@ -256,7 +256,7 @@ export default function App() {
           <span>ESP32 NimBLE</span>
         </div>
         <div>
-          <span>Engineered with Cloudflare Workers &amp; D1</span>
+          <span>Engineered for JK-BMS Active Balancing</span>
         </div>
       </footer>
     </div>

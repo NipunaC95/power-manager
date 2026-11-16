@@ -3,7 +3,6 @@
  * Reads .env (single source of truth) and synchronizes configurations to:
  * 1. esp32/config.h (for Arduino IDE)
  * 2. src_pio/config.h (for PlatformIO)
- * 3. workers/ingest/.dev.vars & workers/dashboard/.dev.vars (for Cloudflare Wrangler)
  */
 
 const fs = require('fs');
@@ -43,7 +42,6 @@ const configHeader = `/**
 #define MQTT_PASS         "${envConfig.MQTT_PASSWORD || ''}"
 #define MQTT_TOPIC        "${envConfig.MQTT_TOPIC || 'jkbms/telemetry'}"
 
-#define CLOUDFLARE_URL    "${envConfig.CLOUDFLARE_URL || envConfig.INGEST_URL || ''}"
 #define API_KEY           "${envConfig.API_KEY || ''}"
 `;
 
@@ -57,13 +55,4 @@ const pioConfigPath = path.join(rootDir, 'src_pio', 'config.h');
 fs.writeFileSync(pioConfigPath, configHeader, 'utf8');
 console.log('  ✅ Generated:', path.relative(rootDir, pioConfigPath));
 
-// 2. Write .dev.vars for Cloudflare Workers
-const ingestDevVars = `API_KEY=${envConfig.API_KEY || ''}
-DATABASE_ID=${envConfig.DATABASE_ID || ''}
-DATABASE_NAME=${envConfig.DATABASE_NAME || ''}
-`;
-fs.writeFileSync(path.join(rootDir, 'workers', 'ingest', '.dev.vars'), ingestDevVars, 'utf8');
-fs.writeFileSync(path.join(rootDir, 'workers', 'dashboard', '.dev.vars'), ingestDevVars, 'utf8');
-console.log('  ✅ Generated: workers/ingest/.dev.vars & workers/dashboard/.dev.vars');
-
-console.log('✨ All components successfully synchronized with .env!');
+console.log('✨ All firmware components successfully synchronized with .env!');

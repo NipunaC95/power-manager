@@ -1,4 +1,4 @@
--- JK-BMS PostgreSQL Schema for Render Managed Database
+-- JK-BMS PostgreSQL Schema (Optional External Database)
 
 CREATE TABLE IF NOT EXISTS bms_telemetry (
     id                  SERIAL PRIMARY KEY,

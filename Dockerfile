@@ -1,5 +1,6 @@
 # ==============================================================================
-# Multi-Stage Dockerfile for Railway Deployment (JK-BMS Standalone Server)
+# Multi-Stage Dockerfile for JK-BMS Standalone Server (GCP Always Free VM)
+# Integrates React UI + Express Backend + WebSocket Server + MQTT Subscriber
 # ==============================================================================
 
 # ── Stage 1: Build Stage ───────────────────────────────────────────────────────
@@ -18,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY package*.json ./
 COPY frontend/package*.json ./frontend/
 
-# Install dependencies (npm install is more tolerant than npm ci during cross-platform lock files)
+# Install dependencies
 RUN npm install
 RUN cd frontend && npm install
 
@@ -53,12 +54,12 @@ RUN npm install --omit=dev && npm cache clean --force
 # Copy compiled bundles and static assets from builder stage
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
-COPY schema.sql schema_pg.sql schema_supabase.sql ./
+COPY schema.sql schema_pg.sql ./
 
 # Create persistent storage folder for SQLite fallback
 RUN mkdir -p /app/data
 
-# Railway automatically assigns $PORT at runtime
+# Default port
 EXPOSE 3000
 
 # Container healthcheck targeting Express /health

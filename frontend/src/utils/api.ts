@@ -1,6 +1,6 @@
 /**
  * API and WebSocket URL resolution helpers.
- * Handles Railway deployments, custom domains, local development, and file:// fallbacks.
+ * Handles GCP Docker container deployments, custom domains, local development, and file:// fallbacks.
  */
 
 export function getApiUrl(endpoint: string): string {
@@ -24,7 +24,7 @@ export function getApiUrl(endpoint: string): string {
     }
   } catch {}
 
-  // Standard relative path (Railway / Same-host deployment)
+  // Standard relative path (Same-host deployment)
   return path;
 }
 
@@ -48,7 +48,7 @@ export function getWsUrl(): string {
     }
   } catch {}
 
-  // Standard relative WebSocket (works with Railway, SSL reverse proxies, etc.)
+  // Standard relative WebSocket (works with reverse proxies, SSL/WSS, etc.)
   const isHttps = window.location.protocol === 'https:';
   const wsProtocol = isHttps ? 'wss:' : 'ws:';
   return `${wsProtocol}//${window.location.host}/api/ws`;

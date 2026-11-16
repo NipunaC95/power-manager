@@ -47799,7 +47799,7 @@ var BmsDatabase = class {
     const databaseUrl = process.env.DATABASE_URL;
     if (databaseUrl && (databaseUrl.startsWith("postgres://") || databaseUrl.startsWith("postgresql://"))) {
       this.isPostgres = true;
-      console.log("[DB] Connecting to PostgreSQL (Render Managed Database)...");
+      console.log("[DB] Connecting to PostgreSQL Database...");
       const isLocal = databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1");
       this.pool = new import_pg.Pool({
         connectionString: databaseUrl,
@@ -47827,11 +47827,8 @@ var BmsDatabase = class {
   async initPostgresSchema() {
     if (!this.pool) return;
     const candidates = [
-      import_path.default.resolve(process.cwd(), "schema_supabase.sql"),
       import_path.default.resolve(process.cwd(), "schema_pg.sql"),
-      import_path.default.resolve(__dirname, "../schema_supabase.sql"),
       import_path.default.resolve(__dirname, "../schema_pg.sql"),
-      import_path.default.resolve(__dirname, "../../schema_supabase.sql"),
       import_path.default.resolve(__dirname, "../../schema_pg.sql")
     ];
     let sql = null;
