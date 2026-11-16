@@ -1,0 +1,41 @@
+# Render Blueprint for JK-BMS Monitoring Platform
+# Deploys:
+# 1. Managed PostgreSQL Database (Render Free Tier)
+# 2. Standalone Web Service (React Frontend + Node.js Backend + MQTT & WebSockets)
+
+databases:
+  - name: jkbms-postgres
+    databaseName: jkbms
+    user: jkbms_user
+    plan: free
+    region: oregon # or frankfurt, singapore, ohio
+
+services:
+  - type: web
+    name: jkbms-server
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && cd frontend && npm install && cd .. && npm run build:standalone
+    startCommand: node dist/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: jkbms-postgres
+          property: connectionString
+      - key: MQTT_SERVER
+        value: broker.emqx.io
+      - key: MQTT_PORT
+        value: 1883
+      - key: MQTT_TOPIC
+        value: jkbms/+/telemetry
+      - key: MQTT_USER
+        value: ""
+      - key: MQTT_PASSWORD
+        value: ""
+      - key: API_KEY
+        generateValue: true
+

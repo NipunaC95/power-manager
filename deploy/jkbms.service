@@ -1,0 +1,19 @@
+[Unit]
+Description=JK-BMS Standalone Server (MQTT, WebSocket & Web Hosting)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/jkbms
+EnvironmentFile=/opt/jkbms/.env
+ExecStart=/usr/bin/node /opt/jkbms/dist/server.js
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=jkbms-server
+
+[Install]
+WantedBy=multi-user.target
+
