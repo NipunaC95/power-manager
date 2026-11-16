@@ -3,6 +3,7 @@ import Chart from './Chart';
 import Metric from './Metric';
 import { parseCells } from '../utils/format';
 import { TelemetryData } from '../types';
+import { getApiUrl } from '../utils/api';
 
 export interface CellDetailProps {
   cellIndex: number;
@@ -33,7 +34,7 @@ export default function CellDetail({ cellIndex, cells, history, onCellChange, on
     setApiHistory([]);
 
     const load = () =>
-      fetch(`/api/cells?cell=${cellIndex}&limit=200`)
+      fetch(getApiUrl(`/api/cells?cell=${cellIndex}&limit=200`))
         .then((r) => r.ok ? r.json() : [])
         .then((data) => { if (!cancelled && Array.isArray(data)) setApiHistory(data); })
         .catch(() => {})

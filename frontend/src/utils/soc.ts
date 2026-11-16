@@ -2,6 +2,7 @@
  * SOC (State of Charge) & Battery Settings Utility
  */
 import { BmsSettings, TelemetryData } from '../types';
+import { getApiUrl } from './api';
 
 export const DEFAULT_SETTINGS: BmsSettings = {
   batteryCapacityAh: 100,
@@ -28,7 +29,7 @@ export function saveSettingsLocal(settings: BmsSettings): void {
 
 export async function fetchSettingsApi(): Promise<BmsSettings> {
   try {
-    const resp = await fetch('/api/settings');
+    const resp = await fetch(getApiUrl('/api/settings'));
     if (resp.ok) {
       const data = await resp.json();
       if (data && typeof data === 'object') {
@@ -44,7 +45,7 @@ export async function fetchSettingsApi(): Promise<BmsSettings> {
 export async function saveSettingsApi(settings: BmsSettings): Promise<BmsSettings> {
   saveSettingsLocal(settings);
   try {
-    const resp = await fetch('/api/settings', {
+    const resp = await fetch(getApiUrl('/api/settings'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),

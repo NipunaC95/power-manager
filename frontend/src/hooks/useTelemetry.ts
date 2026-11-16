@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { TelemetryData } from '../types';
+import { getApiUrl, getWsUrl } from '../utils/api';
 
 /**
  * useTelemetry Hook
@@ -36,8 +37,8 @@ export function useTelemetry(): UseTelemetryReturn {
 
   const refreshHttp = useCallback(async () => {
     const [dLatest, dHistory] = await Promise.all([
-      fetchJson('/api/latest'),
-      fetchJson('/api/history'),
+      fetchJson(getApiUrl('/api/latest')),
+      fetchJson(getApiUrl('/api/history')),
     ]);
     if (isMountedRef.current) {
       if (dLatest) setLatest(dLatest);
@@ -50,10 +51,7 @@ export function useTelemetry(): UseTelemetryReturn {
     if (!isMountedRef.current) return;
 
     try {
-      const isHttps = window.location.protocol === 'https:';
-      const wsProtocol = isHttps ? 'wss:' : 'ws:';
-      const wsUrl = `${wsProtocol}//${window.location.host}/api/ws`;
-
+      const wsUrl = getWsUrl();
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 

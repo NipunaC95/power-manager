@@ -13,6 +13,7 @@
     "build:server": "esbuild server/src/server.ts --bundle --platform=node --target=node18 --external:better-sqlite3 --external:pg --outfile=dist/server.js",
     "start:server": "node dist/server.js",
     "build:standalone": "npm run build:frontend && npm run build:server",
+    "start": "node dist/server.js",
     "build": "npm run env:sync && npm run build:workers && npm run build:bridge && npm run build:frontend",
     "deploy:ingest": "npm run env:sync && npm run build:workers && cd workers/ingest && wrangler deploy",
     "deploy:dashboard": "npm run env:sync && npm run build && cd workers/dashboard && wrangler deploy",
