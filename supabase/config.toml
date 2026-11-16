@@ -1,12 +1,10 @@
-# Supabase CLI & Branching Configuration
-project_id = "jkbms"
+# Supabase CLI Configuration
+project_id = "ljjajsrihkkzdsjrfubd"
 
 [api]
 enabled = true
 port = 54321
 schemas = ["public"]
-extra_search_path = ["public", "extensions"]
-max_rows = 1000
 
 [db]
 port = 54322
@@ -17,5 +15,4 @@ port = 54323
 
 [realtime]
 enabled = true
-port = 54324
 
