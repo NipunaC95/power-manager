@@ -89,26 +89,26 @@ server.on('upgrade', (request, socket, head) => {
   }
 });
 
-wss.on('connection', (ws: WebSocket) => {
+wss.on('connection', async (ws: WebSocket) => {
   activeSockets.add(ws);
 
   // Send initial data snapshot
   try {
-    const latest = db.getLatestTelemetry();
-    const history = db.getHistoryTelemetry(100);
+    const latest = await db.getLatestTelemetry();
+    const history = await db.getHistoryTelemetry(100);
     ws.send(JSON.stringify({ type: 'init', latest, history }));
   } catch (err: any) {
     console.error('[WS] Error sending initial payload:', err.message);
   }
 
-  ws.on('message', (message) => {
+  ws.on('message', async (message) => {
     try {
       const data = JSON.parse(message.toString());
       if (data.type === 'ping') {
         ws.send(JSON.stringify({ type: 'pong' }));
       } else if (data.type === 'refresh') {
-        const latest = db.getLatestTelemetry();
-        const history = db.getHistoryTelemetry(100);
+        const latest = await db.getLatestTelemetry();
+        const history = await db.getHistoryTelemetry(100);
         ws.send(JSON.stringify({ type: 'init', latest, history }));
       }
     } catch {}
@@ -162,43 +162,63 @@ app.get('/health', (req, res) => {
 });
 
 // GET /api/latest
-app.get('/api/latest', (req, res) => {
-  const latest = db.getLatestTelemetry();
-  res.json(latest || {});
+app.get('/api/latest', async (req, res) => {
+  try {
+    const latest = await db.getLatestTelemetry();
+    res.json(latest || {});
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/history?limit=100
-app.get('/api/history', (req, res) => {
-  const limit = parseInt(req.query.limit as string || '100', 10);
-  const history = db.getHistoryTelemetry(limit);
-  res.json(history);
+app.get('/api/history', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string || '100', 10);
+    const history = await db.getHistoryTelemetry(limit);
+    res.json(history);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/cells?cell=0&limit=200
-app.get('/api/cells', (req, res) => {
-  const cellIndex = parseInt(req.query.cell as string || '0', 10);
-  const limit = parseInt(req.query.limit as string || '200', 10);
-  const data = db.getCellHistory(cellIndex, limit);
-  res.json(data);
+app.get('/api/cells', async (req, res) => {
+  try {
+    const cellIndex = parseInt(req.query.cell as string || '0', 10);
+    const limit = parseInt(req.query.limit as string || '200', 10);
+    const data = await db.getCellHistory(cellIndex, limit);
+    res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/cells/latest?limit=50
-app.get('/api/cells/latest', (req, res) => {
-  const limit = parseInt(req.query.limit as string || '50', 10);
-  const data = db.getLatestCells(limit);
-  res.json(data);
+app.get('/api/cells/latest', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string || '50', 10);
+    const data = await db.getLatestCells(limit);
+    res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/settings
-app.get('/api/settings', (req, res) => {
-  const settings = db.getSettings();
-  res.json(settings);
+app.get('/api/settings', async (req, res) => {
+  try {
+    const settings = await db.getSettings();
+    res.json(settings);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /api/settings
-app.post('/api/settings', (req, res) => {
+app.post('/api/settings', async (req, res) => {
   try {
-    const updated = db.updateSettings(req.body);
+    const updated = await db.updateSettings(req.body);
     res.json({ success: true, settings: updated });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -206,7 +226,7 @@ app.post('/api/settings', (req, res) => {
 });
 
 // POST /api/telemetry (Direct HTTP ingest fallback)
-app.post('/api/telemetry', (req, res) => {
+app.post('/api/telemetry', async (req, res) => {
   if (API_KEY) {
     const key = req.headers['x-api-key'];
     if (key !== API_KEY) {
@@ -215,7 +235,7 @@ app.post('/api/telemetry', (req, res) => {
   }
 
   try {
-    const { id, latest } = db.insertTelemetry(req.body);
+    const { id, latest } = await db.insertTelemetry(req.body);
     broadcast(latest);
     res.json({ success: true, id });
   } catch (err: any) {

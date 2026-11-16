@@ -54,13 +54,13 @@ export class MqttService {
       });
     });
 
-    this.client.on('message', (msgTopic, message) => {
+    this.client.on('message', async (msgTopic, message) => {
       try {
         const raw = message.toString();
         const data = JSON.parse(raw);
 
-        // Insert into SQLite database
-        const { id, latest } = this.db.insertTelemetry(data);
+        // Insert into database (PostgreSQL on Render / SQLite locally)
+        const { id, latest } = await this.db.insertTelemetry(data);
 
         const packV = latest.total_voltage?.toFixed(2) ?? '--';
         const cur = latest.current?.toFixed(2) ?? '--';
