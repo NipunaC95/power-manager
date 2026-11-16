@@ -6,6 +6,18 @@
 
 set -euo pipefail
 
+# ── Auto-Detect if already running INSIDE a Google Compute Engine VM ──────────
+if curl -s -m 1 -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/id &>/dev/null; then
+    echo "=========================================================="
+    echo "   GCP VM DETECTED: RUNNING IN-PLACE DOCKER SETUP         "
+    echo "=========================================================="
+    echo "You are currently running inside a Compute Engine VM."
+    echo "Switching directly to container build & service setup..."
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    chmod +x "$SCRIPT_DIR/gcp_vm_setup.sh"
+    exec "$SCRIPT_DIR/gcp_vm_setup.sh"
+fi
+
 INSTANCE_NAME="jkbms-free-vm"
 ZONE="us-central1-a"
 REGION="us-central1"
@@ -28,7 +40,8 @@ fi
 
 PROJECT_ID=$(gcloud config get-value project 2>/dev/null || true)
 if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "(unset)" ]; then
-    echo "Please set your default project: gcloud config set project <PROJECT_ID>"
+    echo "Error: No active GCP project configured."
+    echo "Run: gcloud config set project <YOUR_PROJECT_ID>"
     exit 1
 fi
 
@@ -38,10 +51,11 @@ echo "Machine Type       : $MACHINE_TYPE (Always Free eligible)"
 echo "Disk               : $BOOT_DISK_SIZE $BOOT_DISK_TYPE (Always Free eligible)"
 echo "----------------------------------------------------------"
 
-# 1. Create Firewall Rule for HTTP and Port 3000
+# 1. Create Firewall Rule for HTTP and Port 3000 (Non-blocking)
 echo "[1/3] Ensuring firewall rules exist for port 80 and 3000..."
 if ! gcloud compute firewall-rules describe allow-jkbms-web --project="$PROJECT_ID" &>/dev/null; then
-    gcloud compute firewall-rules create allow-jkbms-web \
+    echo "Attempting to create firewall rule 'allow-jkbms-web'..."
+    if ! gcloud compute firewall-rules create allow-jkbms-web \
         --project="$PROJECT_ID" \
         --direction=INGRESS \
         --priority=1000 \
@@ -49,9 +63,13 @@ if ! gcloud compute firewall-rules describe allow-jkbms-web --project="$PROJECT_
         --action=ALLOW \
         --rules=tcp:80,tcp:443,tcp:3000 \
         --source-ranges=0.0.0.0/0 \
-        --target-tags=jkbms-server \
-        --description="Allow inbound HTTP and custom ports for JK-BMS web UI"
-    echo "Firewall rule created."
+        --target-tags=jkbms-server,http-server \
+        --description="Allow inbound HTTP and custom ports for JK-BMS web UI" 2>/dev/null; then
+        echo "Note: Could not automatically create custom firewall rule (insufficient permissions/scopes)."
+        echo "      Proceeding with default 'http-server' tag which uses standard port 80."
+    else
+        echo "Firewall rule created successfully."
+    fi
 else
     echo "Firewall rule already exists."
 fi
@@ -60,7 +78,7 @@ fi
 echo "[2/3] Checking Compute Engine VM instance '$INSTANCE_NAME'..."
 if ! gcloud compute instances describe "$INSTANCE_NAME" --zone="$ZONE" --project="$PROJECT_ID" &>/dev/null; then
     echo "Creating e2-micro Always Free VM instance..."
-    gcloud compute instances create "$INSTANCE_NAME" \
+    if ! gcloud compute instances create "$INSTANCE_NAME" \
         --project="$PROJECT_ID" \
         --zone="$ZONE" \
         --machine-type="$MACHINE_TYPE" \
@@ -69,7 +87,16 @@ if ! gcloud compute instances describe "$INSTANCE_NAME" --zone="$ZONE" --project
         --image-family="$IMAGE_FAMILY" \
         --image-project="$IMAGE_PROJECT" \
         --tags=jkbms-server,http-server,https-server \
-        --metadata=enable-oslogin=TRUE
+        --metadata=enable-oslogin=TRUE; then
+        echo ""
+        echo "=========================================================="
+        echo "ERROR: Failed to create VM instance."
+        echo "If you saw 'Request had insufficient authentication scopes':"
+        echo "  1. Run: gcloud auth login"
+        echo "  2. Rerun this script."
+        echo "=========================================================="
+        exit 1
+    fi
     echo "Waiting 20 seconds for instance to initialize..."
     sleep 20
 else
@@ -109,4 +136,3 @@ echo "Health Check  : http://$EXTERNAL_IP/health"
 echo "Live API      : http://$EXTERNAL_IP/api/latest"
 echo "WebSocket     : ws://$EXTERNAL_IP/api/ws"
 echo "=========================================================="
-
