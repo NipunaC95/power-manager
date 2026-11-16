@@ -6,6 +6,9 @@
 
 set -euo pipefail
 
+# Ensure gcloud is in PATH
+export PATH="/opt/homebrew/share/google-cloud-sdk/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 # ── Auto-Detect if already running INSIDE a Google Compute Engine VM ──────────
 if curl -s -m 1 -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/id &>/dev/null; then
     echo "=========================================================="
@@ -41,7 +44,7 @@ fi
 PROJECT_ID=$(gcloud config get-value project 2>/dev/null || true)
 if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "(unset)" ]; then
     echo "Error: No active GCP project configured."
-    echo "Run: gcloud config set project <YOUR_PROJECT_ID>"
+    echo "Run: gcloud config set project payment-project-401113"
     exit 1
 fi
 
@@ -79,6 +82,7 @@ echo "[2/3] Checking Compute Engine VM instance '$INSTANCE_NAME'..."
 if ! gcloud compute instances describe "$INSTANCE_NAME" --zone="$ZONE" --project="$PROJECT_ID" &>/dev/null; then
     echo "Creating e2-micro Always Free VM instance..."
     if ! gcloud compute instances create "$INSTANCE_NAME" \
+        --quiet \
         --project="$PROJECT_ID" \
         --zone="$ZONE" \
         --machine-type="$MACHINE_TYPE" \
@@ -114,8 +118,17 @@ echo "VM Public IP: $EXTERNAL_IP"
 echo "----------------------------------------------------------"
 
 # 4. Deploy code onto VM via SSH
-echo "[3/3] Deploying JK-BMS Docker container to the VM..."
-gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --project="$PROJECT_ID" --command="
+echo "[3/3] Waiting for VM SSH to become ready and deploying JK-BMS..."
+for i in {1..12}; do
+    if gcloud compute ssh "$INSTANCE_NAME" --quiet --zone="$ZONE" --project="$PROJECT_ID" --command="echo 'SSH ready'" &>/dev/null; then
+        echo "VM is ready for deployment."
+        break
+    fi
+    echo "Waiting for SSH to initialize (attempt $i/12)..."
+    sleep 5
+done
+
+gcloud compute ssh "$INSTANCE_NAME" --quiet --zone="$ZONE" --project="$PROJECT_ID" --command="
     set -e
     if [ ! -d ~/jkbms ]; then
         git clone https://github.com/NipunaC95/power-manager.git ~/jkbms
