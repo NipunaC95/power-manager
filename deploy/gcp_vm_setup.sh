@@ -72,3 +72,4 @@ echo "Test endpoint: http://localhost/health"
 curl -s http://localhost/health || curl -s http://localhost:3000/health || echo "Starting up..."
 echo ""
 echo "Access your BMS dashboard via: http://<YOUR_GCP_VM_EXTERNAL_IP>/"
+

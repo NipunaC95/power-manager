@@ -109,3 +109,4 @@ echo "Health Check  : http://$EXTERNAL_IP/health"
 echo "Live API      : http://$EXTERNAL_IP/api/latest"
 echo "WebSocket     : ws://$EXTERNAL_IP/api/ws"
 echo "=========================================================="
+

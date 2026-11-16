@@ -149,3 +149,4 @@ gcloud compute instances create-with-container jkbms-server \
    http://<YOUR_GCP_VM_EXTERNAL_IP>/
    ```
    The dashboard displays live voltages, current, pack power, SoC, temperature sensors, and dynamic runtime estimates directly from the ESP32!
+
