@@ -274,6 +274,10 @@ void publishMqttTelemetry() {
 
 // ---------------------- Setup & Main Loop ----------------------
 void setup() {
+  // Ensure onboard user LEDs are turned off
+  pinMode(2, OUTPUT);
+  digitalWrite(2, LOW);
+
   Serial.begin(115200);
   delay(1000);
 
