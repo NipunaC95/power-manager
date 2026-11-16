@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  jkbms-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jkbms-server
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - DB_PATH=/app/data/jkbms.db
+      - PUBLIC_DIR=/app/public
+      - MQTT_SERVER=${MQTT_SERVER:-broker.emqx.io}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_USER=${MQTT_USER:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - MQTT_TOPIC=${MQTT_TOPIC:-jkbms/+/telemetry}
+      - API_KEY=${API_KEY:-}
+    volumes:
+      - jkbms-data:/app/data
+
+  # Optional: Local Mosquitto MQTT Broker (uncomment if you want a private broker on your VM)
+  # mosquitto:
+  #   image: eclipse-mosquitto:2
+  #   container_name: jkbms-mosquitto
+  #   restart: unless-stopped
+  #   ports:
+  #     - "1883:1883"
+  #   volumes:
+  #     - ./deploy/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+volumes:
+  jkbms-data:
+    driver: local
+
