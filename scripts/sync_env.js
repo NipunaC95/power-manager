@@ -40,8 +40,9 @@ const configHeader = `/**
 #define MQTT_PORT         ${parseInt(envConfig.MQTT_PORT || '1883', 10)}
 #define MQTT_USER         "${envConfig.MQTT_USER || ''}"
 #define MQTT_PASS         "${envConfig.MQTT_PASSWORD || ''}"
-#define MQTT_TOPIC        "${envConfig.MQTT_TOPIC || 'jkbms/telemetry'}"
+#define MQTT_TOPIC        "${envConfig.MQTT_TOPIC || 'jkbms/507268D28101263/telemetry'}"
 
+#define SERVER_URL        "${envConfig.SERVER_URL || 'http://136.80.228.184/api/telemetry'}"
 #define API_KEY           "${envConfig.API_KEY || ''}"
 `;
 

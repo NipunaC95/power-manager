@@ -42,9 +42,9 @@ def load_env():
 #define MQTT_PORT         {int(vars_dict.get('MQTT_PORT', 1883))}
 #define MQTT_USER         "{vars_dict.get('MQTT_USER', '')}"
 #define MQTT_PASS         "{vars_dict.get('MQTT_PASSWORD', '')}"
-#define MQTT_TOPIC        "{vars_dict.get('MQTT_TOPIC', 'jkbms/telemetry')}"
+#define MQTT_TOPIC        "{vars_dict.get('MQTT_TOPIC', 'jkbms/507268D28101263/telemetry')}"
 
-#define CLOUDFLARE_URL    "{vars_dict.get('CLOUDFLARE_URL', '')}"
+#define SERVER_URL        "{vars_dict.get('SERVER_URL', 'http://136.80.228.184/api/telemetry')}"
 #define API_KEY           "{vars_dict.get('API_KEY', '')}"
 '''
 

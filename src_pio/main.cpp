@@ -9,6 +9,7 @@
 #include <ArduinoJson.h>
 #include <esp_bt.h>
 #include <esp_wifi.h>
+#include <HTTPClient.h>
 #include "config.h"
 
 // Standard JK BLE UUIDs
@@ -218,9 +219,9 @@ void ensureMqttConnected() {
   }
 }
 
-// ---------------------- MQTT Telemetry Publish ----------------------
+// ---------------------- Telemetry Publish (MQTT + HTTP Direct Ingest) ----------------------
 void publishMqttTelemetry() {
-  if (!mqttClient.connected() || !bmsData.updated) return;
+  if (!bmsData.updated) return;
 
   DynamicJsonDocument doc(2048);
   doc["total_voltage"] = bmsData.total_voltage;
@@ -243,11 +244,31 @@ void publishMqttTelemetry() {
   String payload;
   serializeJson(doc, payload);
 
-  bool published = mqttClient.publish(MQTT_TOPIC, payload.c_str());
-  if (published) {
-    Serial.printf("[MQTT] Published %u bytes to %s\n", payload.length(), MQTT_TOPIC);
-  } else {
-    Serial.println("[MQTT] Publish failed (check buffer size or connection)!");
+  // 1. Primary: Publish to MQTT Broker
+  if (mqttClient.connected()) {
+    bool published = mqttClient.publish(MQTT_TOPIC, payload.c_str());
+    if (published) {
+      Serial.printf("[MQTT] Published %u bytes to %s\n", payload.length(), MQTT_TOPIC);
+    } else {
+      Serial.println("[MQTT] Publish failed (check buffer size or connection)!");
+    }
+  }
+
+  // 2. Direct HTTP Post to GCP Server (Redundancy)
+  if (WiFi.status() == WL_CONNECTED && strlen(SERVER_URL) > 7) {
+    HTTPClient http;
+    http.begin(SERVER_URL);
+    http.addHeader("Content-Type", "application/json");
+    if (strlen(API_KEY) > 0) {
+      http.addHeader("X-API-Key", API_KEY);
+    }
+    int httpCode = http.POST(payload);
+    if (httpCode == 200) {
+      Serial.printf("[HTTP] Ingest OK -> %s (200)\n", SERVER_URL);
+    } else {
+      Serial.printf("[HTTP] Ingest -> %s (code %d)\n", SERVER_URL, httpCode);
+    }
+    http.end();
   }
 }
 
