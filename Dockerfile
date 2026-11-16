@@ -37,6 +37,7 @@ COPY --from=builder /app/dist/server.js ./dist/server.js
 COPY --from=builder /app/public ./public
 COPY schema.sql ./schema.sql
 COPY schema_pg.sql ./schema_pg.sql
+COPY schema_supabase.sql ./schema_supabase.sql
 
 # Create persistent data directory for SQLite
 RUN mkdir -p /app/data

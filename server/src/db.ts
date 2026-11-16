@@ -78,8 +78,11 @@ export class BmsDatabase {
   private async initPostgresSchema() {
     if (!this.pool) return;
     const candidates = [
+      path.resolve(process.cwd(), 'schema_supabase.sql'),
       path.resolve(process.cwd(), 'schema_pg.sql'),
+      path.resolve(__dirname, '../schema_supabase.sql'),
       path.resolve(__dirname, '../schema_pg.sql'),
+      path.resolve(__dirname, '../../schema_supabase.sql'),
       path.resolve(__dirname, '../../schema_pg.sql'),
     ];
     let sql: string | null = null;
