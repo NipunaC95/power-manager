@@ -1,0 +1,99 @@
+name: Deploy to GCP VM
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Production VM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to GCP Always Free VM via SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          VM_HOST: ${{ secrets.GCP_VM_HOST || '136.80.228.184' }}
+          VM_USER: ${{ secrets.GCP_VM_USER || 'chandimal_nipuna_gmail_com' }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SSH_PRIVATE_KEY:-}" ]; then
+            echo "❌ Error: Secret GCP_SSH_PRIVATE_KEY is not configured in repository secrets."
+            echo "Please add GCP_SSH_PRIVATE_KEY under Repository Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          echo "🔐 Configuring SSH client..."
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+          echo "📡 Connecting to production VM at $VM_HOST as $VM_USER..."
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o ConnectTimeout=15 "$VM_USER@$VM_HOST" "bash -e -s" << EOF
+            echo "=========================================================="
+            echo " 🚀 DEPLOYING COMMIT: ${COMMIT_SHA:0:7}"
+            echo " 📝 MESSAGE: ${COMMIT_MSG:-Manual deploy}"
+            echo " 🕒 TIMESTAMP: \$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "=========================================================="
+
+            cd ~/jkbms
+
+            echo ""
+            echo "📥 [1/4] Pulling latest commits from GitHub origin/main..."
+            git fetch origin main
+            git reset --hard origin/main
+            echo "✅ Repository updated to: \$(git log -1 --oneline)"
+
+            echo ""
+            echo "🔨 [2/4] Building Docker container image..."
+            docker compose build
+
+            echo ""
+            echo "🔄 [3/4] Recreating and launching container..."
+            docker compose up -d --remove-orphans
+
+            echo ""
+            echo "🏥 [4/4] Verifying health check..."
+            HEALTHY=false
+            for i in \$(seq 1 15); do
+              if curl -fs http://localhost/health > /dev/null 2>&1; then
+                HEALTHY=true
+                echo "✅ Health check PASSED on attempt \$i!"
+                break
+              fi
+              echo "⏳ Waiting for health endpoint to respond (attempt \$i/15)..."
+              sleep 2
+            done
+
+            if [ "\$HEALTHY" != "true" ]; then
+              echo "❌ Health check failed after 30 seconds! Fetching container logs:"
+              docker compose logs --tail=50 jkbms-server
+              exit 1
+            fi
+
+            echo ""
+            echo "=========================================================="
+            echo " 📊 DEPLOYMENT VERIFICATION & CONTAINER STATUS"
+            echo "=========================================================="
+            docker compose ps
+            echo ""
+            echo "🌐 Public Health Check Response:"
+            curl -s http://localhost/health || true
+            echo ""
+            echo ""
+            echo "🎉 DEPLOYMENT COMPLETED SUCCESSFULLY!"
+            echo "=========================================================="
+          EOF
