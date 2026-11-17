@@ -206,3 +206,4 @@ export class AnalyticsEngine {
     return Number((kwhDischarged / packNominalKwh).toFixed(3));
   }
 }
+

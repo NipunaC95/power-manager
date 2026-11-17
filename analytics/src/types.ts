@@ -82,3 +82,4 @@ export interface CellHealthSummary {
   is_weakest: boolean;
   status: 'healthy' | 'caution' | 'imbalanced';
 }
+
