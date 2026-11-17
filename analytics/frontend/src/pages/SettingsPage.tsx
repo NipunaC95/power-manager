@@ -34,7 +34,7 @@ export default function SettingsPage() {
 
   const handleForceSync = async () => {
     setIsSyncing(true);
-    setSyncOutput('Triggering batch sync with primary GCP server...');
+    setSyncOutput('Triggering batch sync with primary server...');
     try {
       const res = await fetch('/api/analytics/sync', { method: 'POST' });
       const data = await res.json();
@@ -108,10 +108,10 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="bg-[#1e1e22] border border-white/10 p-5 rounded-xl">
-        <h2 className="font-serif text-xl text-white font-normal">System & Pipeline Configuration</h2>
+      <div className="bg-[#1e1e22] border border-white/10 p-5 rounded-2xl">
+        <h2 className="font-serif text-xl text-white font-normal">System &amp; Battery Configuration</h2>
         <p className="text-xs text-neutral-400 font-mono mt-1">
-          Cloudflare D1 edge database synchronization, battery pack specifications & pipeline diagnostics
+          Battery pack specifications, cloud data synchronization &amp; pipeline diagnostics
         </p>
       </div>
 
@@ -275,7 +275,7 @@ export default function SettingsPage() {
 
           <div className="flex items-center justify-between pt-2">
             <p className="text-[11px] text-neutral-500">
-              * Saving will automatically recalculate equivalent full cycles for all historical records in Cloudflare D1.
+              * Saving will automatically recalculate equivalent full cycles for all historical records.
             </p>
             <button
               type="submit"
@@ -290,12 +290,12 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Sync Pipeline Status ── */}
-      <div className="bg-[#1e1e22] border border-white/10 rounded-xl p-6 shadow-sm space-y-4 font-mono text-xs">
-        <h3 className="font-serif text-base text-white">Cloudflare D1 Scheduled Sync</h3>
+      <div className="bg-[#1e1e22] border border-white/10 rounded-2xl p-6 shadow-sm space-y-4 font-mono text-xs">
+        <h3 className="font-serif text-base text-white">Cloud Data Synchronization</h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-neutral-300">
           <div className="bg-neutral-900/60 p-3 rounded-lg border border-white/5">
-            <span className="text-[10px] text-neutral-400 block mb-1">TARGET GCP HOST</span>
+            <span className="text-[10px] text-neutral-400 block mb-1">PRIMARY SERVER HOST</span>
             <span className="text-white font-bold">{syncStatus?.target_server || 'http://136.80.228.184'}</span>
           </div>
 
