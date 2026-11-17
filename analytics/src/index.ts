@@ -91,7 +91,11 @@ async function syncDataAndRollup(env: Env): Promise<{
   lastSyncedId: number;
   message: string;
 }> {
-  const serverUrl = env.PRIMARY_SERVER_URL || 'http://136.80.228.184';
+  let serverUrl = env.PRIMARY_SERVER_URL || 'http://136.80.228.184.sslip.io';
+  // If raw IP is provided, convert to sslip.io to satisfy Cloudflare Worker DNS requirements
+  if (/^https?:\/\/\d+\.\d+\.\d+\.\d+/.test(serverUrl)) {
+    serverUrl = serverUrl.replace(/^http:\/\/(\d+\.\d+\.\d+\.\d+)/, 'http://$1.sslip.io');
+  }
 
   // Read sync cursor from D1
   const cursorRow = await env.DB.prepare(
@@ -130,7 +134,7 @@ async function syncDataAndRollup(env: Env): Promise<{
         "INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('sync_status', 'idle', CURRENT_TIMESTAMP)"
       ).run();
       await env.DB.prepare(
-        "INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('last_sync_time', CURRENT_TIMESTAMP)"
+        "INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('last_sync_time', datetime('now'), CURRENT_TIMESTAMP)"
       ).run();
       return { success: true, syncedCount: 0, lastSyncedId, message: 'Already up to date. No new records.' };
     }
@@ -173,11 +177,11 @@ async function syncDataAndRollup(env: Env): Promise<{
 
     // Update cursor
     await env.DB.prepare(
-      "INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('last_synced_id', ?)"
+      "INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('last_synced_id', ?, CURRENT_TIMESTAMP)"
     ).bind(String(newLastId)).run();
 
     await env.DB.prepare(
-      "INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('last_sync_time', CURRENT_TIMESTAMP)"
+      "INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('last_sync_time', datetime('now'), CURRENT_TIMESTAMP)"
     ).run();
 
     await env.DB.prepare(
