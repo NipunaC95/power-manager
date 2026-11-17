@@ -363,6 +363,99 @@ export class BmsDatabase {
     });
   }
 
+  public async getSyncRecords(sinceId = 0, limit = 1000): Promise<EnrichedTelemetry[]> {
+    const boundedLimit = Math.min(Math.max(limit, 1), 2000);
+
+    if (this.isPostgres && this.pool) {
+      const res = await this.pool.query(`
+        SELECT * FROM bms_telemetry WHERE id > $1 ORDER BY id ASC LIMIT $2
+      `, [sinceId, boundedLimit]);
+
+      if (!res.rows.length) return [];
+      const ids = res.rows.map((r: any) => r.id);
+      const cellRes = await this.pool.query(`
+        SELECT telemetry_id, cell_index, voltage FROM cell_data WHERE telemetry_id = ANY($1) ORDER BY telemetry_id, cell_index ASC
+      `, [ids]);
+
+      const cellMap = new Map<number, number[]>();
+      for (const c of cellRes.rows) {
+        if (!cellMap.has(c.telemetry_id)) cellMap.set(c.telemetry_id, []);
+        cellMap.get(c.telemetry_id)!.push(Number(c.voltage));
+      }
+
+      return res.rows.map((r: any) => {
+        const cells = cellMap.get(r.id) || [];
+        const totalV = Number(r.total_voltage);
+        const curr = Number(r.current);
+        const cell_min = cells.length ? Math.min(...cells) : null;
+        const cell_max = cells.length ? Math.max(...cells) : null;
+        return {
+          id: r.id,
+          timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
+          total_voltage: totalV,
+          current: curr,
+          power: totalV * curr,
+          soc: r.soc,
+          capacity_remaining: Number(r.capacity_remaining),
+          temp_mos: Number(r.temp_mos),
+          temp_battery_1: Number(r.temp_battery_1),
+          temp_battery_2: Number(r.temp_battery_2),
+          charging_enabled: r.charging_enabled,
+          discharging_enabled: r.discharging_enabled,
+          cell_voltages: cells,
+          cell_min_voltage: cell_min,
+          cell_max_voltage: cell_max,
+          cell_diff: cell_min != null && cell_max != null ? cell_max - cell_min : null,
+        };
+      });
+    }
+
+    // SQLite
+    const rows = this.sqliteDb!.prepare(`
+      SELECT * FROM bms_telemetry WHERE id > ? ORDER BY id ASC LIMIT ?
+    `).all(sinceId, boundedLimit) as any[];
+
+    if (!rows.length) return [];
+
+    const telemetryIds = rows.map((r) => r.id);
+    const placeholders = telemetryIds.map(() => '?').join(',');
+    const cellRows = this.sqliteDb!.prepare(`
+      SELECT telemetry_id, cell_index, voltage FROM cell_data WHERE telemetry_id IN (${placeholders}) ORDER BY telemetry_id, cell_index ASC
+    `).all(...telemetryIds) as Array<{ telemetry_id: number; cell_index: number; voltage: number }>;
+
+    const cellMap = new Map<number, number[]>();
+    for (const c of cellRows) {
+      if (!cellMap.has(c.telemetry_id)) cellMap.set(c.telemetry_id, []);
+      cellMap.get(c.telemetry_id)!.push(c.voltage);
+    }
+
+    return rows.map((r) => {
+      const cells = cellMap.get(r.id) || [];
+      const totalV = Number(r.total_voltage);
+      const curr = Number(r.current);
+      const cell_min = cells.length ? Math.min(...cells) : null;
+      const cell_max = cells.length ? Math.max(...cells) : null;
+      return {
+        id: r.id,
+        timestamp: String(r.timestamp),
+        total_voltage: totalV,
+        current: curr,
+        power: totalV * curr,
+        soc: r.soc,
+        capacity_remaining: Number(r.capacity_remaining),
+        temp_mos: Number(r.temp_mos),
+        temp_battery_1: Number(r.temp_battery_1),
+        temp_battery_2: Number(r.temp_battery_2),
+        charging_enabled: r.charging_enabled,
+        discharging_enabled: r.discharging_enabled,
+        cell_voltages: cells,
+        cell_min_voltage: cell_min,
+        cell_max_voltage: cell_max,
+        cell_diff: cell_min != null && cell_max != null ? cell_max - cell_min : null,
+      };
+    });
+  }
+
   public async getCellHistory(cellIndex: number, limit = 200): Promise<any[]> {
     const boundedLimit = Math.min(Math.max(limit, 1), 1000);
 

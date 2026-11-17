@@ -182,6 +182,23 @@ app.get('/api/history', async (req, res) => {
   }
 });
 
+// GET /api/sync/records?since_id=0&limit=1000 (For Cloudflare Analytics Sync)
+app.get('/api/sync/records', async (req, res) => {
+  try {
+    const sinceId = parseInt(req.query.since_id as string || '0', 10);
+    const limit = parseInt(req.query.limit as string || '1000', 10);
+    const records = await db.getSyncRecords(sinceId, limit);
+    res.json({
+      count: records.length,
+      since_id: sinceId,
+      last_id: records.length ? records[records.length - 1].id : sinceId,
+      records
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/cells?cell=0&limit=200
 app.get('/api/cells', async (req, res) => {
   try {

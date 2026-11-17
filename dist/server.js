@@ -48089,6 +48089,88 @@ var BmsDatabase = class {
       };
     });
   }
+  async getSyncRecords(sinceId = 0, limit = 1e3) {
+    const boundedLimit = Math.min(Math.max(limit, 1), 2e3);
+    if (this.isPostgres && this.pool) {
+      const res = await this.pool.query(`
+        SELECT * FROM bms_telemetry WHERE id > $1 ORDER BY id ASC LIMIT $2
+      `, [sinceId, boundedLimit]);
+      if (!res.rows.length) return [];
+      const ids = res.rows.map((r) => r.id);
+      const cellRes = await this.pool.query(`
+        SELECT telemetry_id, cell_index, voltage FROM cell_data WHERE telemetry_id = ANY($1) ORDER BY telemetry_id, cell_index ASC
+      `, [ids]);
+      const cellMap2 = /* @__PURE__ */ new Map();
+      for (const c of cellRes.rows) {
+        if (!cellMap2.has(c.telemetry_id)) cellMap2.set(c.telemetry_id, []);
+        cellMap2.get(c.telemetry_id).push(Number(c.voltage));
+      }
+      return res.rows.map((r) => {
+        const cells = cellMap2.get(r.id) || [];
+        const totalV = Number(r.total_voltage);
+        const curr = Number(r.current);
+        const cell_min = cells.length ? Math.min(...cells) : null;
+        const cell_max = cells.length ? Math.max(...cells) : null;
+        return {
+          id: r.id,
+          timestamp: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp),
+          total_voltage: totalV,
+          current: curr,
+          power: totalV * curr,
+          soc: r.soc,
+          capacity_remaining: Number(r.capacity_remaining),
+          temp_mos: Number(r.temp_mos),
+          temp_battery_1: Number(r.temp_battery_1),
+          temp_battery_2: Number(r.temp_battery_2),
+          charging_enabled: r.charging_enabled,
+          discharging_enabled: r.discharging_enabled,
+          cell_voltages: cells,
+          cell_min_voltage: cell_min,
+          cell_max_voltage: cell_max,
+          cell_diff: cell_min != null && cell_max != null ? cell_max - cell_min : null
+        };
+      });
+    }
+    const rows = this.sqliteDb.prepare(`
+      SELECT * FROM bms_telemetry WHERE id > ? ORDER BY id ASC LIMIT ?
+    `).all(sinceId, boundedLimit);
+    if (!rows.length) return [];
+    const telemetryIds = rows.map((r) => r.id);
+    const placeholders = telemetryIds.map(() => "?").join(",");
+    const cellRows = this.sqliteDb.prepare(`
+      SELECT telemetry_id, cell_index, voltage FROM cell_data WHERE telemetry_id IN (${placeholders}) ORDER BY telemetry_id, cell_index ASC
+    `).all(...telemetryIds);
+    const cellMap = /* @__PURE__ */ new Map();
+    for (const c of cellRows) {
+      if (!cellMap.has(c.telemetry_id)) cellMap.set(c.telemetry_id, []);
+      cellMap.get(c.telemetry_id).push(c.voltage);
+    }
+    return rows.map((r) => {
+      const cells = cellMap.get(r.id) || [];
+      const totalV = Number(r.total_voltage);
+      const curr = Number(r.current);
+      const cell_min = cells.length ? Math.min(...cells) : null;
+      const cell_max = cells.length ? Math.max(...cells) : null;
+      return {
+        id: r.id,
+        timestamp: String(r.timestamp),
+        total_voltage: totalV,
+        current: curr,
+        power: totalV * curr,
+        soc: r.soc,
+        capacity_remaining: Number(r.capacity_remaining),
+        temp_mos: Number(r.temp_mos),
+        temp_battery_1: Number(r.temp_battery_1),
+        temp_battery_2: Number(r.temp_battery_2),
+        charging_enabled: r.charging_enabled,
+        discharging_enabled: r.discharging_enabled,
+        cell_voltages: cells,
+        cell_min_voltage: cell_min,
+        cell_max_voltage: cell_max,
+        cell_diff: cell_min != null && cell_max != null ? cell_max - cell_min : null
+      };
+    });
+  }
   async getCellHistory(cellIndex, limit = 200) {
     const boundedLimit = Math.min(Math.max(limit, 1), 1e3);
     if (this.isPostgres && this.pool) {
@@ -48438,6 +48520,21 @@ app.get("/api/history", async (req, res) => {
     const limit = parseInt(req.query.limit || "100", 10);
     const history = await db.getHistoryTelemetry(limit);
     res.json(history);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.get("/api/sync/records", async (req, res) => {
+  try {
+    const sinceId = parseInt(req.query.since_id || "0", 10);
+    const limit = parseInt(req.query.limit || "1000", 10);
+    const records = await db.getSyncRecords(sinceId, limit);
+    res.json({
+      count: records.length,
+      since_id: sinceId,
+      last_id: records.length ? records[records.length - 1].id : sinceId,
+      records
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
