@@ -1,11 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLiveSocket } from '../hooks/useLiveSocket';
 import BidirectionalPowerGraph from '../components/BidirectionalPowerGraph';
 import VoltageCurrentGraph from '../components/VoltageCurrentGraph';
+import { calculateManualSoc, DEFAULT_SETTINGS, BatterySettings } from '../utils/soc';
 
 export default function LiveMonitorPage() {
   const { telemetry, streamPoints, connectionStatus, latencyMs } = useLiveSocket();
   const [selectedCell, setSelectedCell] = useState<number | null>(null);
+  const [settings, setSettings] = useState<BatterySettings>(DEFAULT_SETTINGS);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && typeof d === 'object') {
+          setSettings({
+            battery_capacity_ah: d.battery_capacity_ah || 130,
+            nominal_voltage: d.nominal_voltage || 25.6,
+            cell_count: d.cell_count || 8,
+            enable_manual_soc: d.enable_manual_soc !== undefined ? Boolean(d.enable_manual_soc) : true,
+            soc_method: d.soc_method || 'lifepo4_curve',
+            v_min: d.v_min || 24.0,
+            v_max: d.v_max || 27.2,
+          });
+        }
+      })
+      .catch((err) => console.error('Could not fetch settings in LiveMonitor:', err));
+  }, []);
 
   const t = telemetry || {
     id: 0,
@@ -13,8 +34,8 @@ export default function LiveMonitorPage() {
     total_voltage: 25.65,
     current: -5.04,
     power: -129.3,
-    soc: 85,
-    capacity_remaining: 110.5,
+    soc: 0,
+    capacity_remaining: 0,
     cell_min_voltage: 3.205,
     cell_max_voltage: 3.208,
     cell_diff: 0.003,
@@ -34,9 +55,20 @@ export default function LiveMonitorPage() {
   const maxV = t.cell_max_voltage || (cells.length ? Math.max(...cells) : 3.2);
   const deltaMv = t.cell_diff != null ? (t.cell_diff * 1000).toFixed(0) : '0';
 
-  // Capacity calculations (130Ah default)
-  const totalCapacityAh = 130.0;
-  const remainingAh = t.capacity_remaining > 0 ? t.capacity_remaining : (t.soc / 100) * totalCapacityAh;
+  // Manual SOC Calculation
+  const totalCapacityAh = settings.battery_capacity_ah || 130.0;
+  const calculatedSoc = calculateManualSoc(
+    t.total_voltage,
+    cells,
+    settings.soc_method,
+    settings.v_min,
+    settings.v_max,
+    settings.cell_count
+  );
+
+  const isManualActive = settings.enable_manual_soc || t.soc === 0;
+  const effectiveSoc = isManualActive ? calculatedSoc : t.soc;
+  const remainingAh = (effectiveSoc / 100) * totalCapacityAh;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -59,7 +91,9 @@ export default function LiveMonitorPage() {
             <span className="text-[11px] font-mono text-neutral-400 uppercase tracking-wider block">
               Pack ID: 507268D28101263
             </span>
-            <span className="text-xs font-bold text-white font-mono">8S LiFePO4 &middot; 130Ah</span>
+            <span className="text-xs font-bold text-white font-mono">
+              {settings.cell_count}S LiFePO4 &middot; {totalCapacityAh}Ah
+            </span>
           </div>
         </div>
 
@@ -87,23 +121,38 @@ export default function LiveMonitorPage() {
         {/* Subtle background glow */}
         <div
           className={`absolute -right-16 -top-16 w-48 h-48 rounded-full blur-3xl pointer-events-none opacity-20 ${
-            t.soc > 20 ? 'bg-emerald-500' : 'bg-rose-500'
+            effectiveSoc > 20 ? 'bg-emerald-500' : 'bg-rose-500'
           }`}
         />
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div>
-            <span className="text-[11px] font-mono text-neutral-400 uppercase tracking-wider block">
-              State of Charge
-            </span>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[11px] font-mono text-neutral-400 uppercase tracking-wider">
+                State of Charge
+              </span>
+              {isManualActive && (
+                <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
+                  <span>⚡</span>
+                  <span>Manual {settings.soc_method === 'lifepo4_curve' ? 'LiFePO4 Curve' : 'Linear Range'}</span>
+                </span>
+              )}
+            </div>
+
             <div className="flex items-baseline gap-2 mt-0.5">
               <span className="text-4xl sm:text-5xl font-serif text-white font-light tracking-tight">
-                {Math.round(t.soc)}%
+                {Math.round(effectiveSoc)}%
               </span>
               <span className="text-xs font-mono text-neutral-400">
                 ({remainingAh.toFixed(1)} / {totalCapacityAh} Ah Remaining)
               </span>
             </div>
+
+            {isManualActive && t.soc !== effectiveSoc && (
+              <p className="text-[10px] font-mono text-neutral-500 mt-1">
+                Raw BMS reported {t.soc}% (overridden by voltage curve)
+              </p>
+            )}
           </div>
 
           {/* Quick Metrics Capsule */}
@@ -122,11 +171,11 @@ export default function LiveMonitorPage() {
         {/* Animated Horizontal Battery Capsule Gauge */}
         <div className="w-full h-4 bg-neutral-900/90 rounded-full overflow-hidden p-0.5 border border-white/10 relative">
           <div
-            style={{ width: `${Math.min(100, Math.max(3, t.soc))}%` }}
+            style={{ width: `${Math.min(100, Math.max(3, effectiveSoc))}%` }}
             className={`h-full rounded-full transition-all duration-500 ${
-              t.soc > 50
+              effectiveSoc > 50
                 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
-                : t.soc > 20
+                : effectiveSoc > 20
                 ? 'bg-gradient-to-r from-amber-500 to-amber-400'
                 : 'bg-gradient-to-r from-rose-600 to-rose-400'
             }`}
@@ -136,7 +185,7 @@ export default function LiveMonitorPage() {
         <div className="flex items-center justify-between text-[10px] font-mono text-neutral-400 mt-2 px-0.5">
           <span>0% (Empty)</span>
           <span>50%</span>
-          <span>100% (Full - 3.33 kWh)</span>
+          <span>100% (Full - {((totalCapacityAh * settings.nominal_voltage) / 1000).toFixed(2)} kWh)</span>
         </div>
       </div>
 
@@ -156,7 +205,7 @@ export default function LiveMonitorPage() {
         height={150}
       />
 
-      {/* ── 3. Thermal Health Meters (Replacing Gauges) ── */}
+      {/* ── 3. Thermal Health Meters ── */}
       <div className="bg-[#1e1e22] border border-white/10 rounded-2xl p-4 sm:p-5 shadow-lg">
         <div className="flex items-center justify-between mb-3">
           <div>

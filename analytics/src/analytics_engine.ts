@@ -205,5 +205,62 @@ export class AnalyticsEngine {
     if (packNominalKwh <= 0) return 0;
     return Number((kwhDischarged / packNominalKwh).toFixed(3));
   }
+
+  /**
+   * Manually calculates State of Charge (SOC) using LiFePO4 OCV curve or linear range
+   */
+  public static calculateManualSoc(
+    packVoltage: number,
+    cellVoltages: number[] = [],
+    method: 'lifepo4_curve' | 'voltage_range' = 'lifepo4_curve',
+    vMin = 24.0,
+    vMax = 27.2,
+    cellCount = 8
+  ): number {
+    if (packVoltage <= 0) return 0;
+
+    if (method === 'voltage_range') {
+      const range = (vMax || 27.2) - (vMin || 24.0);
+      if (range <= 0) return 50;
+      const pct = ((packVoltage - vMin) / range) * 100;
+      return Math.max(0, Math.min(100, Math.round(pct)));
+    }
+
+    // LiFePO4 resting OCV table interpolation (per-cell)
+    const effectiveCellCount = cellVoltages.length > 0 ? cellVoltages.length : (packVoltage > 35 ? 16 : cellCount || 8);
+    const avgCellV = cellVoltages.length > 0
+      ? cellVoltages.reduce((a, b) => a + b, 0) / cellVoltages.length
+      : packVoltage / effectiveCellCount;
+
+    const table = [
+      { v: 3.42, soc: 100 },
+      { v: 3.38, soc: 95 },
+      { v: 3.35, soc: 90 },
+      { v: 3.33, soc: 80 },
+      { v: 3.31, soc: 70 },
+      { v: 3.30, soc: 60 },
+      { v: 3.29, soc: 50 },
+      { v: 3.28, soc: 40 },
+      { v: 3.26, soc: 30 },
+      { v: 3.22, soc: 20 },
+      { v: 3.15, soc: 10 },
+      { v: 3.00, soc: 5 },
+      { v: 2.80, soc: 0 },
+    ];
+
+    if (avgCellV >= table[0].v) return 100;
+    if (avgCellV <= table[table.length - 1].v) return 0;
+
+    for (let i = 0; i < table.length - 1; i++) {
+      const high = table[i];
+      const low = table[i + 1];
+      if (avgCellV <= high.v && avgCellV >= low.v) {
+        const frac = (avgCellV - low.v) / (high.v - low.v);
+        return Math.round(low.soc + frac * (high.soc - low.soc));
+      }
+    }
+
+    return 50;
+  }
 }
 

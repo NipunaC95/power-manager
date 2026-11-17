@@ -386,7 +386,37 @@ async function getAnalyticsOverview(env: Env): Promise<any> {
     SELECT * FROM bms_telemetry ORDER BY timestamp DESC LIMIT 1
   `).first<any>();
 
+  const settings = await getBatterySettings(env);
   const syncStatus = await getSyncStatus(env);
+
+  let formattedLatest = null;
+  if (latestTelemetry) {
+    const cells: number[] = JSON.parse(latestTelemetry.cell_voltages || '[]');
+    const calculatedSoc = AnalyticsEngine.calculateManualSoc(
+      Number(latestTelemetry.total_voltage),
+      cells,
+      settings.soc_method,
+      settings.v_min,
+      settings.v_max,
+      settings.cell_count
+    );
+
+    const useManual = settings.enable_manual_soc || Number(latestTelemetry.soc) === 0;
+    const effectiveSoc = useManual ? calculatedSoc : Number(latestTelemetry.soc);
+    const effectiveCap = useManual
+      ? Number(((calculatedSoc / 100) * settings.battery_capacity_ah).toFixed(1))
+      : Number(latestTelemetry.capacity_remaining);
+
+    formattedLatest = {
+      ...latestTelemetry,
+      cell_voltages: cells,
+      raw_soc: Number(latestTelemetry.soc),
+      soc: effectiveSoc,
+      calculated_soc: calculatedSoc,
+      capacity_remaining: effectiveCap,
+      manual_soc_active: useManual,
+    };
+  }
 
   return {
     lifetime: {
@@ -398,10 +428,8 @@ async function getAnalyticsOverview(env: Env): Promise<any> {
       total_days_tracked: totals?.total_days_tracked || 0,
     },
     today: todayRow || null,
-    latest_telemetry: latestTelemetry ? {
-      ...latestTelemetry,
-      cell_voltages: JSON.parse(latestTelemetry.cell_voltages || '[]'),
-    } : null,
+    latest_telemetry: formattedLatest,
+    settings,
     sync_status: syncStatus,
   };
 }
@@ -498,7 +526,10 @@ async function getSyncStatus(env: Env): Promise<any> {
 
 async function getBatterySettings(env: Env): Promise<any> {
   const rows = await env.DB.prepare(`
-    SELECT key, value FROM sync_metadata WHERE key IN ('battery_capacity_ah', 'nominal_voltage', 'cell_count')
+    SELECT key, value FROM sync_metadata WHERE key IN (
+      'battery_capacity_ah', 'nominal_voltage', 'cell_count',
+      'enable_manual_soc', 'soc_method', 'v_min', 'v_max'
+    )
   `).all<{ key: string; value: string }>();
 
   const map: Record<string, string> = {};
@@ -511,12 +542,22 @@ async function getBatterySettings(env: Env): Promise<any> {
   const cellCount = parseInt(map.cell_count || '8', 10);
   const nominalEnergyKwh = Number(((capacityAh * nominalVoltage) / 1000).toFixed(3));
 
+  // Default to manual SOC enabled as user requested manual calculation
+  const enableManualSoc = map.enable_manual_soc === undefined || map.enable_manual_soc === '1' || map.enable_manual_soc === 'true';
+  const socMethod = (map.soc_method || 'lifepo4_curve') as 'lifepo4_curve' | 'voltage_range';
+  const vMin = parseFloat(map.v_min || '24.0');
+  const vMax = parseFloat(map.v_max || '27.2');
+
   return {
     battery_capacity_ah: capacityAh,
     nominal_voltage: nominalVoltage,
     cell_count: cellCount,
     cell_chemistry: 'LiFePO4 (LFP)',
     nominal_energy_kwh: nominalEnergyKwh,
+    enable_manual_soc: enableManualSoc,
+    soc_method: socMethod,
+    v_min: vMin,
+    v_max: vMax,
   };
 }
 
@@ -524,6 +565,10 @@ async function updateBatterySettings(env: Env, body: any): Promise<any> {
   const capacityAh = parseFloat(body.battery_capacity_ah);
   const nominalVoltage = parseFloat(body.nominal_voltage ?? 25.6);
   const cellCount = parseInt(body.cell_count ?? 8, 10);
+  const enableManualSoc = body.enable_manual_soc === true || body.enable_manual_soc === '1' || body.enable_manual_soc === 1;
+  const socMethod = String(body.soc_method || 'lifepo4_curve');
+  const vMin = parseFloat(body.v_min ?? 24.0);
+  const vMax = parseFloat(body.v_max ?? 27.2);
 
   if (isNaN(capacityAh) || capacityAh <= 0) {
     throw new Error('Invalid battery_capacity_ah: must be a positive number');
@@ -540,6 +585,10 @@ async function updateBatterySettings(env: Env, body: any): Promise<any> {
     env.DB.prepare("INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('battery_capacity_ah', ?, CURRENT_TIMESTAMP)").bind(String(capacityAh)),
     env.DB.prepare("INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('nominal_voltage', ?, CURRENT_TIMESTAMP)").bind(String(nominalVoltage)),
     env.DB.prepare("INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('cell_count', ?, CURRENT_TIMESTAMP)").bind(String(cellCount)),
+    env.DB.prepare("INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('enable_manual_soc', ?, CURRENT_TIMESTAMP)").bind(enableManualSoc ? '1' : '0'),
+    env.DB.prepare("INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('soc_method', ?, CURRENT_TIMESTAMP)").bind(socMethod),
+    env.DB.prepare("INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('v_min', ?, CURRENT_TIMESTAMP)").bind(String(vMin)),
+    env.DB.prepare("INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('v_max', ?, CURRENT_TIMESTAMP)").bind(String(vMax)),
   ]);
 
   // Recalculate historical equivalent full cycles in daily_analytics
@@ -549,7 +598,7 @@ async function updateBatterySettings(env: Env, body: any): Promise<any> {
     SET equivalent_full_cycles = ROUND(kwh_discharged / ?, 3)
   `).bind(packNominalKwh).run();
 
-  // Try to notify primary GCP server if reachable so its local database also updates
+  // Try to notify primary server if reachable so its local database also updates
   let primaryServerNotified = false;
   try {
     let serverUrl = env.PRIMARY_SERVER_URL || 'http://136.80.228.184.sslip.io';
@@ -562,7 +611,13 @@ async function updateBatterySettings(env: Env, body: any): Promise<any> {
         'Content-Type': 'application/json',
         ...(env.SYNC_API_KEY ? { 'X-API-Key': env.SYNC_API_KEY } : {}),
       },
-      body: JSON.stringify({ batteryCapacityAh: capacityAh }),
+      body: JSON.stringify({
+        batteryCapacityAh: capacityAh,
+        enableManualSoc: enableManualSoc ? 1 : 0,
+        socMethod,
+        vMin,
+        vMax,
+      }),
     });
     if (res.ok) primaryServerNotified = true;
   } catch (e) {
@@ -571,13 +626,21 @@ async function updateBatterySettings(env: Env, body: any): Promise<any> {
 
   return {
     success: true,
-    message: `Updated battery specifications to ${capacityAh}Ah @ ${nominalVoltage}V (${packNominalKwh.toFixed(3)} kWh pack). Historical cycles updated.`,
+    message: `Updated battery specifications (${capacityAh}Ah @ ${nominalVoltage}V, Manual SOC: ${enableManualSoc ? 'ON' : 'OFF'}). Settings applied.`,
     updated_records: updateRes.meta?.changes ?? 0,
     settings: {
       battery_capacity_ah: capacityAh,
       nominal_voltage: nominalVoltage,
       cell_count: cellCount,
       nominal_energy_kwh: Number(packNominalKwh.toFixed(3)),
+      enable_manual_soc: enableManualSoc,
+      soc_method: socMethod,
+      v_min: vMin,
+      v_max: vMax,
+      primary_server_synced: primaryServerNotified,
+    },
+  };
+}
       primary_server_synced: primaryServerNotified,
     },
   };
