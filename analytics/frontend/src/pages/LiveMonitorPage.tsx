@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useLiveSocket } from '../hooks/useLiveSocket';
 import BidirectionalPowerGraph from '../components/BidirectionalPowerGraph';
 import VoltageCurrentGraph from '../components/VoltageCurrentGraph';
+import Chart from '../components/Chart';
 import { calculateManualSoc, DEFAULT_SETTINGS, BatterySettings } from '../utils/soc';
 
 export default function LiveMonitorPage() {
-  const { telemetry, streamPoints, connectionStatus, latencyMs } = useLiveSocket();
+  const { telemetry, history, streamPoints, connectionStatus, latencyMs } = useLiveSocket();
   const [selectedCell, setSelectedCell] = useState<number | null>(null);
   const [settings, setSettings] = useState<BatterySettings>(DEFAULT_SETTINGS);
 
@@ -196,6 +197,77 @@ export default function LiveMonitorPage() {
         currentAmps={t.current}
         height={210}
       />
+
+      {/* ── 2. Temporal Telemetry (SOC History, Voltage History, Power History) ── */}
+      {history.length > 1 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-dashed border-white/10">
+            <div className="flex items-center gap-2">
+              <h2 className="font-serif text-sm sm:text-base text-neutral-200 font-normal">
+                Temporal Telemetry
+              </h2>
+              {isManualActive && (
+                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                  SOC Override Active
+                </span>
+              )}
+            </div>
+            <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider">
+              Telemetry History
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Chart 1: State of Charge (SOC) */}
+            <Chart
+              title="SOC History"
+              data={history}
+              getValue={(d) => {
+                if (settings.enable_manual_soc || d.soc === 0) {
+                  const cellsArr = Array.isArray(d.cell_voltages)
+                    ? d.cell_voltages
+                    : (typeof d.cell_voltages === 'string' ? JSON.parse(d.cell_voltages || '[]') : []);
+                  return calculateManualSoc(
+                    d.total_voltage,
+                    cellsArr,
+                    settings.soc_method,
+                    settings.v_min,
+                    settings.v_max,
+                    settings.cell_count
+                  );
+                }
+                return d.soc;
+              }}
+              unit="%"
+              color="#34d399"
+              fillColor="rgba(52, 211, 153, 0.08)"
+              decimals={0}
+            />
+
+            {/* Chart 2: Pack Voltage */}
+            <Chart
+              title="Voltage History"
+              data={history}
+              getValue={(d) => d.total_voltage}
+              unit="V"
+              color="#61afef"
+              fillColor="rgba(97, 175, 239, 0.08)"
+              decimals={2}
+            />
+
+            {/* Chart 3: Active Power */}
+            <Chart
+              title="Power History"
+              data={history}
+              getValue={(d) => (d.power != null ? d.power : (d.total_voltage * d.current))}
+              unit="W"
+              color="#e5933d"
+              fillColor="rgba(229, 147, 61, 0.08)"
+              decimals={0}
+            />
+          </div>
+        </section>
+      )}
 
       {/* ── 2. Voltage & Stability Trend Graph ── */}
       <VoltageCurrentGraph

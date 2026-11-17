@@ -22,6 +22,7 @@ export interface LiveTelemetry {
 
 export function useLiveSocket() {
   const [telemetry, setTelemetry] = useState<LiveTelemetry | null>(null);
+  const [history, setHistory] = useState<LiveTelemetry[]>([]);
   const [streamPoints, setStreamPoints] = useState<DataPoint[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'ws_live' | 'polling' | 'disconnected'>('disconnected');
   const [latencyMs, setLatencyMs] = useState<number>(0);
@@ -29,7 +30,7 @@ export function useLiveSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Helper to add stream points
+  // Helper to add stream points and history
   const appendStreamPoint = useCallback((t: LiveTelemetry) => {
     setStreamPoints((prev) => {
       const next = [
@@ -41,8 +42,62 @@ export function useLiveSocket() {
           power: t.power,
         },
       ];
-      return next.slice(-60);
+      return next.slice(-100);
     });
+
+    setHistory((prev) => {
+      if (prev.length > 0 && prev[prev.length - 1].timestamp === t.timestamp) {
+        return prev;
+      }
+      return [...prev, t].slice(-100);
+    });
+  }, []);
+
+  // Initial history load
+  useEffect(() => {
+    const fetchInitialHistory = async () => {
+      try {
+        const res = await fetch('http://136.80.228.184.sslip.io/api/history?limit=100');
+        if (res.ok) {
+          const list: LiveTelemetry[] = await res.json();
+          if (Array.isArray(list) && list.length > 0) {
+            const chronological = list.slice().reverse();
+            setHistory(chronological);
+            setStreamPoints(
+              chronological.map((r) => ({
+                timestamp: r.timestamp,
+                voltage: Number(r.total_voltage),
+                current: Number(r.current),
+                power: Number(r.power),
+              }))
+            );
+            setTelemetry(chronological[chronological.length - 1]);
+          }
+        }
+      } catch {
+        try {
+          const res = await fetch('https://calgary-checking-restore-specifications.trycloudflare.com/api/history?limit=100');
+          if (res.ok) {
+            const list: LiveTelemetry[] = await res.json();
+            if (Array.isArray(list) && list.length > 0) {
+              const chronological = list.slice().reverse();
+              setHistory(chronological);
+              setStreamPoints(
+                chronological.map((r) => ({
+                  timestamp: r.timestamp,
+                  voltage: Number(r.total_voltage),
+                  current: Number(r.current),
+                  power: Number(r.power),
+                }))
+              );
+              setTelemetry(chronological[chronological.length - 1]);
+            }
+          }
+        } catch {}
+      }
+    };
+
+    fetchInitialHistory();
   }, []);
 
   // Poll fallback
@@ -64,7 +119,6 @@ export function useLiveSocket() {
           }
         }
       } catch {
-        // Fallback to Cloudflare Tunnel
         try {
           const res = await fetch('https://calgary-checking-restore-specifications.trycloudflare.com/api/latest');
           if (res.ok) {
@@ -87,8 +141,6 @@ export function useLiveSocket() {
     let isMounted = true;
 
     const connectWebSocket = () => {
-      // Determine best WebSocket URL:
-      // Try Cloudflare WSS tunnel if on HTTPS, otherwise direct WS
       const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
       const wsUrl = isHttps
         ? 'wss://calgary-checking-restore-specifications.trycloudflare.com/api/ws'
@@ -137,7 +189,6 @@ export function useLiveSocket() {
         ws.onclose = () => {
           if (!isMounted) return;
           startPolling();
-          // Retry WS after 10 seconds
           setTimeout(connectWebSocket, 10000);
         };
       } catch {
@@ -156,9 +207,9 @@ export function useLiveSocket() {
 
   return {
     telemetry,
+    history,
     streamPoints,
     connectionStatus,
     latencyMs,
   };
 }
-
