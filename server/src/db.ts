@@ -551,7 +551,7 @@ export class BmsDatabase {
     }
 
     return {
-      batteryCapacityAh: 100,
+      batteryCapacityAh: 130,
       enableManualSoc: false,
       socMethod: 'lifepo4_curve',
       vMin: 24.0,
@@ -561,7 +561,7 @@ export class BmsDatabase {
   }
 
   public async updateSettings(body: any): Promise<any> {
-    const batteryCapacityAh = Number(body.batteryCapacityAh) || 100;
+    const batteryCapacityAh = Number(body.batteryCapacityAh) || 130;
     const enableManualSoc = body.enableManualSoc ? 1 : 0;
     const socMethod = String(body.socMethod || 'lifepo4_curve');
     const vMin = Number(body.vMin) || 24.0;

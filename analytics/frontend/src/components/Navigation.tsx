@@ -44,3 +44,4 @@ export default function Navigation({ activePage, onSelectPage, isWsLive }: Navig
     </nav>
   );
 }
+

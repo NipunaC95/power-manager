@@ -15,7 +15,7 @@ database_id = "5d7cd553-9808-4cf5-9532-5c55191aa531"
 [vars]
 PRIMARY_SERVER_URL = "http://136.80.228.184.sslip.io"
 SYNC_API_KEY = ""
-NOMINAL_CAPACITY_AH = "100"
+NOMINAL_CAPACITY_AH = "130"
 NOMINAL_VOLTAGE = "25.6"
 
 [triggers]

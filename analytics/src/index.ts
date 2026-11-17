@@ -79,6 +79,19 @@ export default {
         return jsonResponse(status);
       }
 
+      // ── GET /api/settings ──
+      if (url.pathname === '/api/settings' && request.method === 'GET') {
+        const settings = await getBatterySettings(env);
+        return jsonResponse(settings);
+      }
+
+      // ── POST /api/settings ──
+      if (url.pathname === '/api/settings' && request.method === 'POST') {
+        const body = await request.json() as any;
+        const result = await updateBatterySettings(env, body);
+        return jsonResponse(result);
+      }
+
       // ── Static Asset Serving (React Analytics UI) ──
       if (env.ASSETS) {
         return await env.ASSETS.fetch(request);
@@ -228,8 +241,16 @@ async function recomputeAnalyticsRollups(env: Env, records: SyncedRecord[]): Pro
     hours.add(h);
   }
 
-  const capacityAh = parseFloat(env.NOMINAL_CAPACITY_AH || '100');
-  const nominalV = parseFloat(env.NOMINAL_VOLTAGE || '25.6');
+  // Read battery specifications dynamically from sync_metadata or env (default 130Ah, 25.6V)
+  const capRow = await env.DB.prepare(
+    "SELECT value FROM sync_metadata WHERE key = 'battery_capacity_ah'"
+  ).first<{ value: string }>();
+  const capacityAh = capRow ? parseFloat(capRow.value) : parseFloat(env.NOMINAL_CAPACITY_AH || '130');
+
+  const voltRow = await env.DB.prepare(
+    "SELECT value FROM sync_metadata WHERE key = 'nominal_voltage'"
+  ).first<{ value: string }>();
+  const nominalV = voltRow ? parseFloat(voltRow.value) : parseFloat(env.NOMINAL_VOLTAGE || '25.6');
 
   // Process Hourly Rollups
   for (const hour of hours) {
@@ -469,6 +490,96 @@ async function getSyncStatus(env: Env): Promise<any> {
     last_sync_time: map.last_sync_time || 'never',
     status: map.sync_status || 'idle',
     target_server: env.PRIMARY_SERVER_URL || 'http://136.80.228.184',
+    battery_capacity_ah: parseFloat(map.battery_capacity_ah || env.NOMINAL_CAPACITY_AH || '130'),
+    nominal_voltage: parseFloat(map.nominal_voltage || env.NOMINAL_VOLTAGE || '25.6'),
+    cell_count: parseInt(map.cell_count || '8', 10),
+  };
+}
+
+async function getBatterySettings(env: Env): Promise<any> {
+  const rows = await env.DB.prepare(`
+    SELECT key, value FROM sync_metadata WHERE key IN ('battery_capacity_ah', 'nominal_voltage', 'cell_count')
+  `).all<{ key: string; value: string }>();
+
+  const map: Record<string, string> = {};
+  for (const r of rows.results || []) {
+    map[r.key] = r.value;
+  }
+
+  const capacityAh = parseFloat(map.battery_capacity_ah || env.NOMINAL_CAPACITY_AH || '130');
+  const nominalVoltage = parseFloat(map.nominal_voltage || env.NOMINAL_VOLTAGE || '25.6');
+  const cellCount = parseInt(map.cell_count || '8', 10);
+  const nominalEnergyKwh = Number(((capacityAh * nominalVoltage) / 1000).toFixed(3));
+
+  return {
+    battery_capacity_ah: capacityAh,
+    nominal_voltage: nominalVoltage,
+    cell_count: cellCount,
+    cell_chemistry: 'LiFePO4 (LFP)',
+    nominal_energy_kwh: nominalEnergyKwh,
+  };
+}
+
+async function updateBatterySettings(env: Env, body: any): Promise<any> {
+  const capacityAh = parseFloat(body.battery_capacity_ah);
+  const nominalVoltage = parseFloat(body.nominal_voltage ?? 25.6);
+  const cellCount = parseInt(body.cell_count ?? 8, 10);
+
+  if (isNaN(capacityAh) || capacityAh <= 0) {
+    throw new Error('Invalid battery_capacity_ah: must be a positive number');
+  }
+  if (isNaN(nominalVoltage) || nominalVoltage <= 0) {
+    throw new Error('Invalid nominal_voltage: must be a positive number');
+  }
+  if (isNaN(cellCount) || cellCount <= 0) {
+    throw new Error('Invalid cell_count: must be a positive integer');
+  }
+
+  // Update sync_metadata in D1
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('battery_capacity_ah', ?, CURRENT_TIMESTAMP)").bind(String(capacityAh)),
+    env.DB.prepare("INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('nominal_voltage', ?, CURRENT_TIMESTAMP)").bind(String(nominalVoltage)),
+    env.DB.prepare("INSERT OR REPLACE INTO sync_metadata (key, value, updated_at) VALUES ('cell_count', ?, CURRENT_TIMESTAMP)").bind(String(cellCount)),
+  ]);
+
+  // Recalculate historical equivalent full cycles in daily_analytics
+  const packNominalKwh = (capacityAh * nominalVoltage) / 1000.0;
+  const updateRes = await env.DB.prepare(`
+    UPDATE daily_analytics
+    SET equivalent_full_cycles = ROUND(kwh_discharged / ?, 3)
+  `).bind(packNominalKwh).run();
+
+  // Try to notify primary GCP server if reachable so its local database also updates
+  let primaryServerNotified = false;
+  try {
+    let serverUrl = env.PRIMARY_SERVER_URL || 'http://136.80.228.184.sslip.io';
+    if (/^https?:\/\/\d+\.\d+\.\d+\.\d+/.test(serverUrl)) {
+      serverUrl = serverUrl.replace(/^http:\/\/(\d+\.\d+\.\d+\.\d+)/, 'http://$1.sslip.io');
+    }
+    const res = await fetch(`${serverUrl}/api/settings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(env.SYNC_API_KEY ? { 'X-API-Key': env.SYNC_API_KEY } : {}),
+      },
+      body: JSON.stringify({ batteryCapacityAh: capacityAh }),
+    });
+    if (res.ok) primaryServerNotified = true;
+  } catch (e) {
+    console.warn('[SETTINGS] Could not notify primary server:', e);
+  }
+
+  return {
+    success: true,
+    message: `Updated battery specifications to ${capacityAh}Ah @ ${nominalVoltage}V (${packNominalKwh.toFixed(3)} kWh pack). Historical cycles updated.`,
+    updated_records: updateRes.meta?.changes ?? 0,
+    settings: {
+      battery_capacity_ah: capacityAh,
+      nominal_voltage: nominalVoltage,
+      cell_count: cellCount,
+      nominal_energy_kwh: Number(packNominalKwh.toFixed(3)),
+      primary_server_synced: primaryServerNotified,
+    },
   };
 }
 

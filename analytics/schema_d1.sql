@@ -82,6 +82,6 @@ CREATE TABLE IF NOT EXISTS sync_metadata (
 INSERT OR IGNORE INTO sync_metadata (key, value) VALUES ('last_synced_id', '0');
 INSERT OR IGNORE INTO sync_metadata (key, value) VALUES ('last_sync_time', 'never');
 INSERT OR IGNORE INTO sync_metadata (key, value) VALUES ('sync_status', 'idle');
-INSERT OR IGNORE INTO sync_metadata (key, value) VALUES ('battery_capacity_ah', '100');
+INSERT OR IGNORE INTO sync_metadata (key, value) VALUES ('battery_capacity_ah', '130');
 INSERT OR IGNORE INTO sync_metadata (key, value) VALUES ('nominal_voltage', '25.6');
 

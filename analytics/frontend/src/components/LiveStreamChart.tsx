@@ -121,3 +121,4 @@ export default function LiveStreamChart({ data, height = 180 }: LiveStreamChartP
     </div>
   );
 }
+
