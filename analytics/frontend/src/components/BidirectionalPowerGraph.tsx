@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { DataPoint } from './LiveStreamChart';
+import { formatTime } from '../utils/format';
 
 interface BidirectionalPowerGraphProps {
   data: DataPoint[];
@@ -14,7 +15,9 @@ export default function BidirectionalPowerGraph({
   currentAmps,
   height = 200,
 }: BidirectionalPowerGraphProps) {
-  const points = useMemo(() => data.slice(-50), [data]);
+  const points = useMemo(() => data.slice(-100), [data]);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
 
   // Compute power scale ensuring 0 W is cleanly framed
   const { minP, maxP, peakCharge, peakDischarge } = useMemo(() => {
@@ -46,28 +49,57 @@ export default function BidirectionalPowerGraph({
   const zeroY = padTop + plotH - ((0 - minP) / pRange) * plotH;
   const zeroPct = Math.max(0, Math.min(100, ((zeroY - padTop) / plotH) * 100));
 
+  // Point coordinates
+  const svgPoints = useMemo(() => {
+    if (points.length < 2) return [];
+    return points.map((p, i) => ({
+      x: (i / (points.length - 1)) * width,
+      y: padTop + plotH - ((p.power - minP) / pRange) * plotH,
+      power: p.power,
+      timestamp: p.timestamp,
+    }));
+  }, [points, minP, pRange, plotH, padTop, width]);
+
   // Generate SVG path for Power line
   const pLine = useMemo(() => {
-    if (points.length < 2) return '';
-    return points
-      .map((p, i) => {
-        const x = (i / (points.length - 1)) * width;
-        const y = padTop + plotH - ((p.power - minP) / pRange) * plotH;
-        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-      })
+    if (svgPoints.length < 2) return '';
+    return svgPoints
+      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
       .join(' ');
-  }, [points, minP, pRange, plotH, padTop, width]);
+  }, [svgPoints]);
 
   // Closed area path bound to zeroY
   const pArea = useMemo(() => {
-    if (points.length < 2) return '';
+    if (svgPoints.length < 2) return '';
     const firstX = 0;
     const lastX = width;
     return `${pLine} L ${lastX} ${zeroY.toFixed(1)} L ${firstX} ${zeroY.toFixed(1)} Z`;
-  }, [pLine, zeroY, points.length, width]);
+  }, [pLine, zeroY, svgPoints.length, width]);
 
-  const isCharging = currentPower > 1.0;
-  const isDischarging = currentPower < -1.0;
+  // Handle pointer / tap inspection
+  const handlePointerInteraction = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!svgRef.current || svgPoints.length < 2) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const clientX = 'touches' in e && e.touches.length ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const x = clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, x / rect.width));
+    const idx = Math.round(ratio * (svgPoints.length - 1));
+
+    if (selectedIndex === idx) {
+      setSelectedIndex(null);
+    } else {
+      setSelectedIndex(idx);
+    }
+  };
+
+  const hasSelection = selectedIndex != null && selectedIndex >= 0 && selectedIndex < svgPoints.length;
+  const activePoint = hasSelection ? svgPoints[selectedIndex] : null;
+  const displayPower = hasSelection && activePoint ? activePoint.power : currentPower;
+  const isCharging = displayPower > 1.0;
+  const isDischarging = displayPower < -1.0;
+
+  const firstTs = points.length > 0 ? formatTime(points[0].timestamp) : '';
+  const lastTs = points.length > 0 ? formatTime(points[points.length - 1].timestamp) : '';
 
   return (
     <div className="bg-[#1e1e22] border border-white/10 rounded-2xl p-4 sm:p-5 shadow-lg">
@@ -81,9 +113,16 @@ export default function BidirectionalPowerGraph({
               Bidirectional (±W)
             </span>
           </div>
-          <p className="text-[11px] font-mono text-neutral-400 mt-0.5">
-            Realtime charge (+) and discharge (-) wattage with zero-center baseline
-          </p>
+          <div className="flex items-center gap-3 mt-0.5">
+            <p className="text-[11px] font-mono text-neutral-400">
+              Realtime charge (+) and discharge (-) wattage with zero-center baseline
+            </p>
+            {hasSelection && (
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                Inspecting Point
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Big Live Digital Readout */}
@@ -101,12 +140,28 @@ export default function BidirectionalPowerGraph({
               {isCharging ? '⚡' : isDischarging ? '🔋' : '⏸'}
             </span>
             <div>
-              <div className="text-base sm:text-lg font-bold tracking-tight">
-                {currentPower > 0 ? `+${currentPower.toFixed(1)}` : currentPower.toFixed(1)}{' '}
-                <span className="text-xs font-normal">W</span>
+              <div className="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2">
+                <span>
+                  {displayPower > 0 ? `+${displayPower.toFixed(1)}` : displayPower.toFixed(1)}{' '}
+                  <span className="text-xs font-normal">W</span>
+                </span>
+                {hasSelection && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedIndex(null);
+                    }}
+                    className="text-[10px] font-mono text-neutral-400 hover:text-white px-1.5 py-0.5 rounded bg-neutral-800 border border-white/10 cursor-pointer"
+                    title="Reset to live"
+                  >
+                    ✕ Live
+                  </button>
+                )}
               </div>
               <div className="text-[10px] opacity-80">
-                {isCharging
+                {hasSelection && activePoint
+                  ? `At ${formatTime(activePoint.timestamp, true)}`
+                  : isCharging
                   ? `Charging @ +${currentAmps.toFixed(1)}A`
                   : isDischarging
                   ? `Discharging @ ${Math.abs(currentAmps).toFixed(1)}A`
@@ -134,7 +189,15 @@ export default function BidirectionalPowerGraph({
       </div>
 
       {/* ── Interactive SVG Bidirectional Graph ── */}
-      <div className="relative w-full overflow-hidden bg-neutral-950/60 rounded-xl border border-white/5 p-2">
+      <div
+        className="relative w-full overflow-hidden bg-neutral-950/60 rounded-xl border border-white/5 p-2 cursor-crosshair touch-none select-none"
+        onClick={handlePointerInteraction}
+        onTouchStart={handlePointerInteraction}
+        onTouchMove={handlePointerInteraction}
+        onMouseMove={(e) => {
+          if (e.buttons === 1) handlePointerInteraction(e);
+        }}
+      >
         {points.length < 2 ? (
           <div
             style={{ height }}
@@ -143,7 +206,7 @@ export default function BidirectionalPowerGraph({
             Streaming live telemetry points...
           </div>
         ) : (
-          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
+          <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
             <defs>
               {/* Green gradient for Charging (Above 0) */}
               <linearGradient id="chargeAreaGrad" x1="0" y1="0" x2="0" y2="1">
@@ -240,30 +303,101 @@ export default function BidirectionalPowerGraph({
               strokeLinejoin="round"
             />
 
-            {/* Latest streaming point pulse */}
-            {points.length > 0 && (
-              <circle
-                cx={width}
-                cy={padTop + plotH - ((currentPower - minP) / pRange) * plotH}
-                r="4.5"
-                fill={currentPower >= 0 ? '#10b981' : '#f59e0b'}
-                stroke="#ffffff"
-                strokeWidth="1.5"
-                className="animate-pulse"
-              />
+            {/* Selected point crosshair & inspection marker */}
+            {activePoint ? (
+              <g className="pointer-events-none">
+                <line
+                  x1={activePoint.x}
+                  y1={padTop}
+                  x2={activePoint.x}
+                  y2={padTop + plotH}
+                  stroke={activePoint.power >= 0 ? '#10b981' : '#f59e0b'}
+                  strokeWidth="1.5"
+                  strokeDasharray="3 3"
+                />
+                <circle
+                  cx={activePoint.x}
+                  cy={activePoint.y}
+                  r="7"
+                  fill={activePoint.power >= 0 ? '#10b981' : '#f59e0b'}
+                  fillOpacity="0.25"
+                />
+                <circle
+                  cx={activePoint.x}
+                  cy={activePoint.y}
+                  r="4"
+                  fill="#ffffff"
+                  stroke={activePoint.power >= 0 ? '#10b981' : '#f59e0b'}
+                  strokeWidth="2"
+                />
+              </g>
+            ) : (
+              /* Latest live point pulse */
+              points.length > 0 && (
+                <circle
+                  cx={width}
+                  cy={padTop + plotH - ((currentPower - minP) / pRange) * plotH}
+                  r="4.5"
+                  fill={currentPower >= 0 ? '#10b981' : '#f59e0b'}
+                  stroke="#ffffff"
+                  strokeWidth="1.5"
+                  className="animate-pulse"
+                />
+              )
             )}
           </svg>
         )}
 
         {/* Graph Y-Axis Callouts */}
-        <div className="absolute left-3 top-3 text-[10px] font-mono text-emerald-400 font-bold">
+        <div className="absolute left-3 top-3 text-[10px] font-mono text-emerald-400 font-bold pointer-events-none">
           +{maxP.toFixed(0)}W (Charge)
         </div>
-        <div className="absolute left-3 bottom-3 text-[10px] font-mono text-amber-400 font-bold">
+        <div className="absolute left-3 bottom-8 text-[10px] font-mono text-amber-400 font-bold pointer-events-none">
           {minP.toFixed(0)}W (Discharge)
+        </div>
+
+        {/* Floating Tooltip directly on clicked point */}
+        {activePoint && (
+          <div
+            className="absolute pointer-events-none z-20 transition-all duration-75"
+            style={{
+              left: `${(activePoint.x / width) * 100}%`,
+              top: `${(activePoint.y / height) * 100}%`,
+              transform: `translate(${
+                activePoint.x > width * 0.72
+                  ? '-100%'
+                  : activePoint.x < width * 0.28
+                  ? '0%'
+                  : '-50%'
+              }, ${activePoint.y < 40 ? '16px' : '-135%'})`,
+            }}
+          >
+            <div className="bg-[#18181b]/95 border border-white/20 shadow-2xl rounded-lg px-2.5 py-1 font-mono backdrop-blur-sm whitespace-nowrap text-left ring-1 ring-black/50">
+              <div
+                className="flex items-center gap-1 text-xs font-bold tabular-nums"
+                style={{ color: activePoint.power >= 0 ? '#34d399' : '#fbbf24' }}
+              >
+                <span>{activePoint.power > 0 ? `+${activePoint.power.toFixed(1)}` : activePoint.power.toFixed(1)}</span>
+                <span className="text-[10px] text-neutral-400 font-normal">W</span>
+              </div>
+              <div className="text-[9px] text-neutral-400 mt-0.5">
+                {formatTime(activePoint.timestamp, true)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── X-Axis Timestamps Footer (matching other graphs) ── */}
+        <div className="flex justify-between items-center font-mono text-[10px] text-neutral-400 pt-2 border-t border-white/5 mt-1 px-1">
+          <span>{firstTs}</span>
+          <span className="text-neutral-500">
+            {hasSelection && activePoint
+              ? `Tapped: ${formatTime(activePoint.timestamp, true)}`
+              : `(${points.length} records)`}
+          </span>
+          <span>{lastTs}</span>
         </div>
       </div>
     </div>
   );
 }
-

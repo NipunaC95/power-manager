@@ -198,7 +198,7 @@ export default function LiveMonitorPage() {
         height={210}
       />
 
-      {/* ── 2. Temporal Telemetry (SOC History, Voltage History, Power History) ── */}
+      {/* ── 2. Temporal Telemetry (SOC History & Voltage History) ── */}
       {history.length > 1 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-dashed border-white/10">
@@ -217,7 +217,7 @@ export default function LiveMonitorPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Chart 1: State of Charge (SOC) */}
             <Chart
               title="SOC History"
@@ -253,17 +253,6 @@ export default function LiveMonitorPage() {
               color="#61afef"
               fillColor="rgba(97, 175, 239, 0.08)"
               decimals={2}
-            />
-
-            {/* Chart 3: Active Power */}
-            <Chart
-              title="Power History"
-              data={history}
-              getValue={(d) => (d.power != null ? d.power : (d.total_voltage * d.current))}
-              unit="W"
-              color="#e5933d"
-              fillColor="rgba(229, 147, 61, 0.08)"
-              decimals={0}
             />
           </div>
         </section>
