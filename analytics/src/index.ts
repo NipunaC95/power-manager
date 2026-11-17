@@ -45,6 +45,15 @@ export default {
         return jsonResponse(daily);
       }
 
+      // ── GET /api/analytics/month?year=YYYY&month=M ──
+      if (url.pathname === '/api/analytics/month' && request.method === 'GET') {
+        const now = new Date();
+        const year = parseInt(url.searchParams.get('year') || String(now.getFullYear()), 10);
+        const month = parseInt(url.searchParams.get('month') || String(now.getMonth() + 1), 10);
+        const monthly = await getMonthlyAnalytics(env, year, month);
+        return jsonResponse(monthly);
+      }
+
       // ── GET /api/analytics/hourly?date=YYYY-MM-DD ──
       if (url.pathname === '/api/analytics/hourly' && request.method === 'GET') {
         const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
@@ -381,6 +390,44 @@ async function getDailyAnalytics(env: Env, days: number): Promise<any[]> {
     SELECT * FROM daily_analytics ORDER BY date DESC LIMIT ?
   `).bind(days).all();
   return (rows.results || []).reverse();
+}
+
+async function getMonthlyAnalytics(env: Env, year: number, month: number): Promise<any> {
+  const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+  const days = await env.DB.prepare(`
+    SELECT * FROM daily_analytics WHERE date LIKE ? ORDER BY date ASC
+  `).bind(`${monthStr}%`).all<any>();
+
+  const rows = days.results || [];
+  const totalDischarged = rows.reduce((sum, r) => sum + Number(r.kwh_discharged || 0), 0);
+  const totalCharged = rows.reduce((sum, r) => sum + Number(r.kwh_charged || 0), 0);
+  const totalCycles = rows.reduce((sum, r) => sum + Number(r.equivalent_full_cycles || 0), 0);
+  const avgDailyUsage = rows.length > 0 ? totalDischarged / rows.length : 0;
+
+  let peakDay: any = null;
+  let maxDischarge = -1;
+  for (const r of rows) {
+    if (r.kwh_discharged > maxDischarge) {
+      maxDischarge = r.kwh_discharged;
+      peakDay = r;
+    }
+  }
+
+  return {
+    year,
+    month,
+    month_str: monthStr,
+    summary: {
+      total_kwh_discharged: Number(totalDischarged.toFixed(2)),
+      total_kwh_charged: Number(totalCharged.toFixed(2)),
+      net_kwh: Number((totalCharged - totalDischarged).toFixed(2)),
+      total_cycles: Number(totalCycles.toFixed(2)),
+      days_with_data: rows.length,
+      avg_daily_kwh: Number(avgDailyUsage.toFixed(2)),
+      peak_usage_day: peakDay ? { date: peakDay.date, kwh_discharged: peakDay.kwh_discharged } : null,
+    },
+    days: rows,
+  };
 }
 
 async function getHourlyAnalytics(env: Env, date: string): Promise<any[]> {

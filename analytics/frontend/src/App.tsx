@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import CalendarView from './components/CalendarView';
 
 interface AnalyticsOverview {
   lifetime: {
@@ -72,6 +73,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'calendar' | 'trends'>('calendar');
 
   const fetchData = async () => {
     try {
@@ -232,62 +234,96 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── Daily Energy Throughput Chart ── */}
-      <section className="bg-[#1e1e22] border border-white/10 rounded-xl p-6 mb-8 shadow-sm">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="font-serif text-lg text-white font-normal">Daily Energy Throughput</h2>
-            <p className="text-xs text-neutral-400 font-mono">Charged (kWh) vs Discharged (kWh) over past 14 days</p>
-          </div>
-          <div className="flex items-center gap-4 text-xs font-mono">
-            <span className="flex items-center gap-1.5 text-emerald-400">
-              <span className="w-2.5 h-2.5 rounded bg-emerald-500"></span> Charged
-            </span>
-            <span className="flex items-center gap-1.5 text-amber-400">
-              <span className="w-2.5 h-2.5 rounded bg-amber-500"></span> Discharged
-            </span>
-          </div>
-        </div>
+      {/* ── View Mode Selector Tabs ── */}
+      <div className="flex items-center gap-2 mb-6 border-b border-white/10 pb-3">
+        <button
+          onClick={() => setActiveTab('calendar')}
+          className={`px-4 py-2 rounded-lg font-mono text-xs flex items-center gap-2 transition ${
+            activeTab === 'calendar'
+              ? 'bg-[#BF3C27] text-white shadow'
+              : 'zed-btn-neutral text-neutral-400 hover:text-white'
+          }`}
+        >
+          <span>📅</span>
+          <span>Calendar & Monthly Usage</span>
+        </button>
 
-        {dailyData.length === 0 ? (
-          <div className="py-12 text-center text-neutral-500 font-mono text-xs">
-            No daily rollup data yet. Click &quot;Sync Now&quot; to aggregate telemetry from your primary server.
-          </div>
-        ) : (
-          <div className="h-48 flex items-end gap-3 pt-6 border-b border-white/10">
-            {dailyData.map((d) => {
-              const chgPct = (d.kwh_charged / maxKwh) * 100;
-              const disPct = (d.kwh_discharged / maxKwh) * 100;
-              return (
-                <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-end group relative">
-                  {/* Tooltip */}
-                  <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition bg-neutral-900 border border-white/20 p-2 rounded text-[10px] font-mono text-white pointer-events-none whitespace-nowrap z-10 shadow-lg">
-                    <p className="font-bold text-neutral-300">{d.date}</p>
-                    <p className="text-emerald-400">In: {d.kwh_charged.toFixed(2)} kWh</p>
-                    <p className="text-amber-400">Out: {d.kwh_discharged.toFixed(2)} kWh</p>
-                  </div>
+        <button
+          onClick={() => setActiveTab('trends')}
+          className={`px-4 py-2 rounded-lg font-mono text-xs flex items-center gap-2 transition ${
+            activeTab === 'trends'
+              ? 'bg-[#BF3C27] text-white shadow'
+              : 'zed-btn-neutral text-neutral-400 hover:text-white'
+          }`}
+        >
+          <span>📈</span>
+          <span>14-Day Trends & Charts</span>
+        </button>
+      </div>
 
-                  <div className="w-full flex items-end justify-center gap-1 h-full">
-                    {/* Charged Bar */}
-                    <div
-                      style={{ height: `${Math.max(chgPct, 4)}%` }}
-                      className="w-1/2 bg-emerald-500/80 hover:bg-emerald-400 rounded-t transition"
-                    />
-                    {/* Discharged Bar */}
-                    <div
-                      style={{ height: `${Math.max(disPct, 4)}%` }}
-                      className="w-1/2 bg-amber-500/80 hover:bg-amber-400 rounded-t transition"
-                    />
-                  </div>
-                  <span className="text-[10px] text-neutral-500 font-mono mt-2 truncate w-full text-center">
-                    {d.date.substring(5)}
-                  </span>
-                </div>
-              );
-            })}
+      {/* ── View 1: Calendar & Monthly Usage ── */}
+      {activeTab === 'calendar' && (
+        <CalendarView />
+      )}
+
+      {/* ── View 2: Daily Energy Throughput Chart ── */}
+      {activeTab === 'trends' && (
+        <section className="bg-[#1e1e22] border border-white/10 rounded-xl p-6 mb-8 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="font-serif text-lg text-white font-normal">Daily Energy Throughput</h2>
+              <p className="text-xs text-neutral-400 font-mono">Charged (kWh) vs Discharged (kWh) over past 14 days</p>
+            </div>
+            <div className="flex items-center gap-4 text-xs font-mono">
+              <span className="flex items-center gap-1.5 text-emerald-400">
+                <span className="w-2.5 h-2.5 rounded bg-emerald-500"></span> Charged
+              </span>
+              <span className="flex items-center gap-1.5 text-amber-400">
+                <span className="w-2.5 h-2.5 rounded bg-amber-500"></span> Discharged
+              </span>
+            </div>
           </div>
-        )}
-      </section>
+
+          {dailyData.length === 0 ? (
+            <div className="py-12 text-center text-neutral-500 font-mono text-xs">
+              No daily rollup data yet. Click &quot;Sync Now&quot; to aggregate telemetry from your primary server.
+            </div>
+          ) : (
+            <div className="h-48 flex items-end gap-3 pt-6 border-b border-white/10">
+              {dailyData.map((d) => {
+                const chgPct = (d.kwh_charged / maxKwh) * 100;
+                const disPct = (d.kwh_discharged / maxKwh) * 100;
+                return (
+                  <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-end group relative">
+                    {/* Tooltip */}
+                    <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition bg-neutral-900 border border-white/20 p-2 rounded text-[10px] font-mono text-white pointer-events-none whitespace-nowrap z-10 shadow-lg">
+                      <p className="font-bold text-neutral-300">{d.date}</p>
+                      <p className="text-emerald-400">In: {d.kwh_charged.toFixed(2)} kWh</p>
+                      <p className="text-amber-400">Out: {d.kwh_discharged.toFixed(2)} kWh</p>
+                    </div>
+
+                    <div className="w-full flex items-end justify-center gap-1 h-full">
+                      {/* Charged Bar */}
+                      <div
+                        style={{ height: `${Math.max(chgPct, 4)}%` }}
+                        className="w-1/2 bg-emerald-500/80 hover:bg-emerald-400 rounded-t transition"
+                      />
+                      {/* Discharged Bar */}
+                      <div
+                        style={{ height: `${Math.max(disPct, 4)}%` }}
+                        className="w-1/2 bg-amber-500/80 hover:bg-amber-400 rounded-t transition"
+                      />
+                    </div>
+                    <span className="text-[10px] text-neutral-500 font-mono mt-2 truncate w-full text-center">
+                      {d.date.substring(5)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── Cell Balance & Weakest Cell Matrix ── */}
       <section className="bg-[#1e1e22] border border-white/10 rounded-xl p-6 mb-8 shadow-sm">
